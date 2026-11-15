@@ -269,14 +269,14 @@ export const CaseDetailModal: React.FC = () => {
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2 font-bold text-xs sm:text-sm text-emerald-900">
                       <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0" />
-                      <span>Pinag-isang Ulat (Auto-Deduplicated & Consolidated Docket)</span>
+                      <span>Unified Report (Auto-Deduplicated & Consolidated Docket)</span>
                     </div>
                     <span className="bg-emerald-600 text-white text-[9px] uppercase font-black px-2 py-0.5 rounded-full">
                       1 Report Retained
                     </span>
                   </div>
                   <p className="text-[11px] text-emerald-800 leading-relaxed">
-                    Napansin ng system na nagkaroon ng higit sa isang pag-report ukol sa insidenteng ito na may kaunting pagkakaiba sa mga detalye. Awtomatikong inalis ang ka-parehas na report at pinag-isa ang lahat ng impormasyon, litrato, at talaan sa nag-iisang opisyal na dossier na ito upang maiwasan ang kalituhan at dobleng pag-responde ng MDRRMO at Barangay.
+                    The system detected multiple reports for this incident with slight variations in details. Duplicate submissions were automatically removed and all information, photos, and records were merged into this single official dossier to prevent confusion and duplicate dispatch by MDRRMO and the Barangay.
                   </p>
                 </div>
               )}

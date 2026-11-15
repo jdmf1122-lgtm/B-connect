@@ -350,9 +350,9 @@ export const ResidentPortalView: React.FC<{ initialTab?: 'overview' | 'submit' |
                         <div className="mt-3 p-3 bg-emerald-100/90 border border-emerald-300 rounded-xl text-emerald-950 text-xs flex items-start gap-2 shadow-xs">
                           <CheckCircle2 className="w-4 h-4 text-emerald-700 shrink-0 mt-0.5" />
                           <div>
-                            <strong className="block font-bold">Awtomatikong Pinag-isang Ulat (Auto-Consolidated)</strong>
+                            <strong className="block font-bold">Unified Report (Auto-Consolidated)</strong>
                             <span className="text-[11px] leading-relaxed block mt-0.5">
-                              Napansin ng system na may nauna nang katulad na ulat ukol sa insidenteng ito. Matagumpay na pinag-isa ang iyong report sa nag-iisang aktibong docket na ito upang maiwasan ang duplicate report at dobleng dispatch ng mga responders.
+                              The system detected a similar existing report for this incident. Your submission has been automatically merged into this active docket to prevent duplicate reports and redundant responder dispatch.
                             </span>
                           </div>
                         </div>
@@ -698,7 +698,7 @@ export const ResidentPortalView: React.FC<{ initialTab?: 'overview' | 'submit' |
                           <PriorityBadge priority={c.priority} />
                           {isConsolidatedCase(c) && (
                             <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
-                              ✓ Pinag-isang Ulat (Unified)
+                              ✓ Unified Report (Consolidated)
                             </span>
                           )}
                         </div>

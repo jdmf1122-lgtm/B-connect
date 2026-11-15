@@ -148,7 +148,7 @@ export const useCases = () => {
 
       triggerNotification(
         'Duplicate Report Auto-Consolidated',
-        `Napansin ng system na may nauna nang katulad na report para sa insidenteng ito. Matagumpay itong pinag-isa sa Case #${consolidatedCase.id} (Brgy. ${consolidatedCase.barangay}) upang isa lamang ang manatili at maiwasan ang duplicate dispatch.`,
+        `The system detected an existing report for this incident. Your submission has been consolidated into Case #${consolidatedCase.id} (Brgy. ${consolidatedCase.barangay}) to maintain a single unified record and prevent duplicate dispatch.`,
         'system',
         consolidatedCase.id,
         currentUser.agencyName,
