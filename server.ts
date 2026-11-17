@@ -247,7 +247,37 @@ const SUPABASE_CASE_COLUMNS = new Set([
   'isConfidential'
 ]);
 
-// Case Creation & Sync Endpoint (Admin Service Role bypasses RLS)
+// Case Fetching, Creation & Deletion Endpoints (Admin Service Role bypasses RLS)
+app.get('/api/cases', async (req, res) => {
+  try {
+    if (supabaseAdmin) {
+      const { data, error } = await supabaseAdmin
+        .from('cases')
+        .select('*')
+        .order('dateCreated', { ascending: false });
+      if (error) {
+        return res.status(500).json({ success: false, message: error.message });
+      }
+      return res.json({ success: true, cases: data || [] });
+    }
+    return res.json({ success: true, cases: [] });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+app.delete('/api/cases/:id', async (req, res) => {
+  const { id } = req.params;
+  try {
+    if (supabaseAdmin && id) {
+      await supabaseAdmin.from('cases').delete().eq('id', id);
+    }
+    return res.json({ success: true });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
 app.post('/api/cases', async (req, res) => {
   const caseData = req.body;
   if (!caseData || !caseData.id) {

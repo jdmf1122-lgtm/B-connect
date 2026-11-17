@@ -347,9 +347,9 @@ export const ResidentPortalView: React.FC<{ initialTab?: 'overview' | 'submit' |
                         <div className="mt-2.5 p-3 bg-paper-2 border border-rule rounded-md text-ink text-xs flex items-start gap-2">
                           <CheckCircle2 className="w-4 h-4 text-accent shrink-0 mt-0.5" />
                           <div>
-                            <strong className="block font-semibold">Automatic consolidation (Pinag-isang ulat)</strong>
+                            <strong className="block font-semibold">Unified Report (Auto-Consolidated)</strong>
                             <span className="text-xs text-muted leading-relaxed block mt-0.5">
-                              The system detected an existing report for this incident. Your report has been unified with active docket {submittedSuccessCaseId} to prevent duplicate responder dispatches.
+                              The system detected a similar existing report for this incident. Your submission has been automatically merged into active docket {submittedSuccessCaseId} to prevent duplicate reports and redundant responder dispatch.
                             </span>
                           </div>
                         </div>
@@ -708,7 +708,7 @@ export const ResidentPortalView: React.FC<{ initialTab?: 'overview' | 'submit' |
                           <PriorityBadge priority={c.priority} />
                           {isConsolidatedCase(c) && (
                             <span className="px-2 py-0.5 rounded text-xs font-medium bg-paper-2 border border-rule text-ink">
-                              Unified report
+                              Unified report (Consolidated)
                             </span>
                           )}
                         </div>

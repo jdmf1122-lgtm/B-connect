@@ -148,7 +148,7 @@ export const useCases = () => {
 
       triggerNotification(
         'Duplicate Report Auto-Consolidated',
-        `Napansin ng system na may nauna nang katulad na report para sa insidenteng ito. Matagumpay itong pinag-isa sa Case #${consolidatedCase.id} (Brgy. ${consolidatedCase.barangay}) upang isa lamang ang manatili at maiwasan ang duplicate dispatch.`,
+        `The system detected an existing report for this incident. Your submission has been consolidated into Case #${consolidatedCase.id} (Brgy. ${consolidatedCase.barangay}) to maintain a single unified record and prevent duplicate dispatch.`,
         'system',
         consolidatedCase.id,
         currentUser.agencyName,
@@ -284,7 +284,7 @@ export const useCases = () => {
     }
 
     // 1. Direct client insert into Supabase cases table
-    supabase.from('cases').insert(dbPayload).then(({ error }) => {
+    supabase.from('cases').upsert(dbPayload, { onConflict: 'id' }).then(({ error }) => {
       if (error) {
         console.error('Direct Supabase insert error:', error.message, error);
       }
@@ -464,10 +464,14 @@ export const useCases = () => {
 
   const deleteCase = async (caseId: string): Promise<boolean> => {
     try {
-      // 1. Delete from Supabase
+      // 1. Delete from Supabase & backend API
       const { error } = await supabase.from('cases').delete().eq('id', caseId);
       if (error) {
         console.error('Error deleting case from Supabase:', error);
+      }
+      const backendUrl = import.meta.env.VITE_BACKEND_URL || (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') ? 'http://localhost:3001' : '');
+      if (backendUrl) {
+        fetch(`${backendUrl}/api/cases/${caseId}`, { method: 'DELETE' }).catch(() => {});
       }
 
       // 2. Update local state

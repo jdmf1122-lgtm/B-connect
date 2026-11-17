@@ -51,9 +51,26 @@ export interface CaseState {
 export const CaseContext = createContext<CaseState | undefined>(undefined);
 
 export const CaseProvider: React.FC<{ children: ReactNode; isAuthenticated: boolean }> = ({ children, isAuthenticated }) => {
-  const [cases, setCases] = useState<Case[]>(SEED_CASES);
+  const [cases, setCases] = useState<Case[]>(() => {
+    try {
+      const cached = localStorage.getItem('bconnect_cases_cache_v2');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed.map((c: any) => sanitizeCaseBarangay(c));
+        }
+      }
+    } catch (e) {}
+    return SEED_CASES;
+  });
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>(SEED_AUDIT_LOGS);
   const [selectedCaseId, setSelectedCaseId] = useState<string | null>(null);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('bconnect_cases_cache_v2', JSON.stringify(cases));
+    } catch (e) {}
+  }, [cases]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -64,8 +81,26 @@ export const CaseProvider: React.FC<{ children: ReactNode; isAuthenticated: bool
           supabase.from('audit_logs').select('*').order('timestamp', { ascending: false })
         ]);
 
-        if (casesRes.data && Array.isArray(casesRes.data)) {
-          const sanitized = casesRes.data.map((c: any) => sanitizeCaseBarangay(c));
+        let fetchedCases: any[] | null = null;
+        if (casesRes.data && Array.isArray(casesRes.data) && casesRes.data.length > 0) {
+          fetchedCases = casesRes.data;
+        } else {
+          try {
+            const backendUrl = (import.meta as any).env?.VITE_BACKEND_URL || (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') ? 'http://localhost:3001' : '');
+            if (backendUrl) {
+              const resp = await fetch(`${backendUrl}/api/cases`);
+              if (resp.ok) {
+                const json = await resp.json();
+                if (Array.isArray(json.cases)) {
+                  fetchedCases = json.cases;
+                }
+              }
+            }
+          } catch (e) {}
+        }
+
+        if (fetchedCases && Array.isArray(fetchedCases)) {
+          const sanitized = fetchedCases.map((c: any) => sanitizeCaseBarangay(c));
           const { cleanedCases, removedDuplicates } = deduplicateCaseList(sanitized);
 
           if (removedDuplicates.length > 0) {
@@ -85,11 +120,16 @@ export const CaseProvider: React.FC<{ children: ReactNode; isAuthenticated: bool
             }
           }
 
-          setCases(cleanedCases.sort((a, b) =>
-            new Date(b.dateCreated || b.dateReported).getTime() - new Date(a.dateCreated || a.dateReported).getTime()
-          ));
+          setCases((prev) => {
+            if (cleanedCases.length === 0 && prev.length > 0) return prev;
+            const mergedMap = new Map<string, Case>();
+            cleanedCases.forEach((c) => mergedMap.set(c.id, c));
+            return Array.from(mergedMap.values()).sort((a, b) =>
+              new Date(b.dateCreated || b.dateReported).getTime() - new Date(a.dateCreated || a.dateReported).getTime()
+            );
+          });
         }
-        if (logsRes.data && Array.isArray(logsRes.data)) {
+        if (logsRes.data && Array.isArray(logsRes.data) && logsRes.data.length > 0) {
           setAuditLogs(logsRes.data as AuditLog[]);
         }
       } catch (err) {
