@@ -1,8 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
 import {
-  ShieldAlert,
-  Building2,
-  Landmark,
   UserPlus,
   LogIn,
   Mail,
@@ -16,13 +13,11 @@ import {
   Moon,
   Sun,
   ShieldCheck,
-  Sparkles,
   X
 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { useUI } from '../../hooks/useUI';
 import { AgencyType, ROXAS_BARANGAYS, User as UserType } from '../../types';
-import { MDRRMO_FIXED_USER, LGU_FIXED_USER } from '../../data/seedData';
 
 export const POSITION_SUGGESTIONS: Record<AgencyType, string[]> = {
   RESIDENT: [
@@ -55,7 +50,7 @@ export const POSITION_SUGGESTIONS: Record<AgencyType, string[]> = {
 };
 
 export const AuthPage: React.FC = () => {
-  const { login, loginWithCredentials, registerUser, users } = useAuth();
+  const { login, loginWithCredentials, registerUser } = useAuth();
 
   // Mode: 'login' | 'register'
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
@@ -68,9 +63,6 @@ export const AuthPage: React.FC = () => {
 
   // Forgot Password modal
   const [showForgotModal, setShowForgotModal] = useState(false);
-
-  // Quick action feedback
-  const [quickActionNotice, setQuickActionNotice] = useState<string | null>(null);
 
   // Login Form States
   const [loginIdentifier, setLoginIdentifier] = useState<string>('');
@@ -174,52 +166,6 @@ export const AuthPage: React.FC = () => {
     }
   };
 
-  // Quick Agency Demo Access shortcuts (corresponding to fixed accounts)
-  const handleQuickRoleAccess = (type: 'RESIDENT' | 'MDRRMO' | 'LGU') => {
-    if (type === 'MDRRMO') {
-      const fixedMdr = (users || []).find((u) => u.email?.toLowerCase() === 'mdrrmoroxas@gmail.com') || MDRRMO_FIXED_USER;
-      setLoginIdentifier(fixedMdr.email);
-      setLoginPasscode('mdrrmo2026');
-      setQuickActionNotice('Authenticated as MDRRMO Operations Center');
-      login(fixedMdr);
-      return;
-    }
-
-    if (type === 'LGU') {
-      const fixedLgu = (users || []).find((u) => u.email?.toLowerCase() === 'lguroxas@gmail.com') || LGU_FIXED_USER;
-      setLoginIdentifier(fixedLgu.email);
-      setLoginPasscode('lguroxas2026');
-      setQuickActionNotice('Authenticated as Municipal LGU Administrator');
-      login(fixedLgu);
-      return;
-    }
-
-    // Resident Citizen fast login
-    const existingRes = (users || []).find((u) => u.agencyType === 'RESIDENT');
-    if (existingRes) {
-      setLoginIdentifier(existingRes.email || existingRes.badgeOrIdNumber || existingRes.name);
-      setLoginPasscode(existingRes.passcode || '');
-      setQuickActionNotice('Authenticated as Verified Resident Citizen');
-      login(existingRes);
-      return;
-    }
-
-    const demoRes: UserType = {
-      id: 'USR-RES-DEMO',
-      name: 'Maria Santos (Resident Citizen)',
-      role: 'RESIDENT',
-      agencyType: 'RESIDENT',
-      agencyName: 'Barangay San Aquilino Resident Citizen',
-      barangay: 'San Aquilino',
-      position: 'Verified Resident Citizen',
-      badgeOrIdNumber: 'RES-SAQ-2026',
-      email: 'resident.roxas@orientalmindoro.ph',
-      avatarUrl: '/bconnect_logo_transparent.png'
-    };
-    setQuickActionNotice('Authenticated as Verified Resident Citizen');
-    login(demoRes);
-  };
-
   return (
     <div
       id="auth-portal-page"
@@ -280,7 +226,7 @@ export const AuthPage: React.FC = () => {
       <main className="flex-1 w-full max-w-6xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
           
-          {/* Left Column: Context, Authority & Fast Agency Demo Triage */}
+          {/* Left Column: Context & Authority */}
           <section className="lg:col-span-7 space-y-6">
             <div className="space-y-3">
               <span className="inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-sm bg-paper-3 text-ink-2 border border-rule">
@@ -293,68 +239,6 @@ export const AuthPage: React.FC = () => {
               <p className="lead text-ink-2 max-w-xl">
                 Unified emergency dispatch and municipal oversight across all 20 Roxas barangays.
               </p>
-            </div>
-
-            {/* Quick Demo Access Stations */}
-            <div className="p-5 rounded-card border border-rule bg-paper-2 space-y-3">
-              <div className="flex items-center justify-between">
-                <h2 className="text-sm font-bold text-ink">
-                  Authorized Agency Access
-                </h2>
-                <span className="text-xs text-muted">
-                  Quick test verification
-                </span>
-              </div>
-              <p className="text-xs text-muted">
-                Select an authorized agency station to instantly authenticate and evaluate platform capabilities:
-              </p>
-              
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-1">
-                {/* 1. Resident Citizen */}
-                <button
-                  type="button"
-                  onClick={() => handleQuickRoleAccess('RESIDENT')}
-                  className="p-3 rounded-md border border-rule bg-paper text-left hover:border-accent transition-colors cursor-pointer group focus-visible:outline-2 focus-visible:outline-focus"
-                >
-                  <div className="flex items-center gap-2 mb-1">
-                    <User className="w-4 h-4 text-accent" aria-hidden="true" />
-                    <span className="text-xs font-bold text-ink whitespace-nowrap">Resident</span>
-                  </div>
-                  <span className="block text-xs text-muted leading-tight whitespace-nowrap">
-                    Citizen reports
-                  </span>
-                </button>
-
-                {/* 2. MDRRMO Dispatch */}
-                <button
-                  type="button"
-                  onClick={() => handleQuickRoleAccess('MDRRMO')}
-                  className="p-3 rounded-md border border-rule bg-paper text-left hover:border-accent transition-colors cursor-pointer group focus-visible:outline-2 focus-visible:outline-focus"
-                >
-                  <div className="flex items-center gap-2 mb-1">
-                    <ShieldAlert className="w-4 h-4 text-accent" aria-hidden="true" />
-                    <span className="text-xs font-bold text-ink whitespace-nowrap">MDRRMO</span>
-                  </div>
-                  <span className="block text-xs text-muted leading-tight whitespace-nowrap">
-                    Dispatch queue
-                  </span>
-                </button>
-
-                {/* 3. LGU Administrator */}
-                <button
-                  type="button"
-                  onClick={() => handleQuickRoleAccess('LGU')}
-                  className="p-3 rounded-md border border-rule bg-paper text-left hover:border-accent transition-colors cursor-pointer group focus-visible:outline-2 focus-visible:outline-focus"
-                >
-                  <div className="flex items-center gap-2 mb-1">
-                    <Landmark className="w-4 h-4 text-accent" aria-hidden="true" />
-                    <span className="text-xs font-bold text-ink whitespace-nowrap">LGU Exec</span>
-                  </div>
-                  <span className="block text-xs text-muted leading-tight whitespace-nowrap">
-                    Oversight
-                  </span>
-                </button>
-              </div>
             </div>
 
             {/* Jurisdiction Notice */}
@@ -432,13 +316,6 @@ export const AuthPage: React.FC = () => {
                 <div className="p-3 bg-paper-3 border border-error/40 text-error rounded-md text-xs flex items-center gap-2">
                   <AlertCircle className="w-4 h-4 flex-shrink-0 text-error" aria-hidden="true" />
                   <span>{regError}</span>
-                </div>
-              )}
-
-              {quickActionNotice && (
-                <div className="p-2.5 bg-paper-3 border border-rule text-ink rounded-md text-xs flex items-center gap-2">
-                  <Sparkles className="w-4 h-4 text-accent flex-shrink-0" aria-hidden="true" />
-                  <span>{quickActionNotice}</span>
                 </div>
               )}
 
