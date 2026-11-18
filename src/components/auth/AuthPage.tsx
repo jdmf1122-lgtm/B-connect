@@ -20,6 +20,7 @@ import {
   X
 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
+import { useUI } from '../../hooks/useUI';
 import { AgencyType, ROXAS_BARANGAYS, User as UserType } from '../../types';
 import { MDRRMO_FIXED_USER, LGU_FIXED_USER } from '../../data/seedData';
 
@@ -60,7 +61,7 @@ export const AuthPage: React.FC = () => {
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
 
   // Ambient lighting / theme toggle
-  const [isDarkMode, setIsDarkMode] = useState(false);
+  const { isDark, toggleTheme } = useUI();
 
   // Remember Me checkbox
   const [rememberMe, setRememberMe] = useState(false);
@@ -222,9 +223,7 @@ export const AuthPage: React.FC = () => {
   return (
     <div
       id="auth-portal-page"
-      className={`min-h-screen flex flex-col justify-between selection:bg-accent selection:text-accent-ink transition-colors duration-200 ${
-        isDarkMode ? 'bg-ink text-paper' : 'bg-paper text-ink'
-      }`}
+      className="min-h-screen flex flex-col justify-between selection:bg-accent selection:text-accent-ink transition-colors duration-200 bg-paper text-ink"
     >
       {/* =========================================================================
           Top Bar: Official Municipal Header & Accessibility Actions
@@ -260,12 +259,12 @@ export const AuthPage: React.FC = () => {
             </span>
             <button
               type="button"
-              onClick={() => setIsDarkMode(!isDarkMode)}
-              title={isDarkMode ? 'Switch to light mode' : 'Switch to dark mode'}
-              aria-label={isDarkMode ? 'Switch to light mode' : 'Switch to dark mode'}
+              onClick={toggleTheme}
+              title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+              aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
               className="w-9 h-9 rounded-md border border-rule bg-paper flex items-center justify-center text-ink cursor-pointer hover:bg-paper-3 transition-colors focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2"
             >
-              {isDarkMode ? (
+              {isDark ? (
                 <Sun className="w-4 h-4 text-amber-400" aria-hidden="true" />
               ) : (
                 <Moon className="w-4 h-4 text-ink-2" aria-hidden="true" />

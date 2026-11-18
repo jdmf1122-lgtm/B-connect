@@ -19,7 +19,9 @@ import {
   Sparkles,
   Menu,
   X,
-  MapPin
+  MapPin,
+  Sun,
+  Moon
 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { useCases } from '../../hooks/useCases';
@@ -33,7 +35,7 @@ export const Header: React.FC<{ onToggleSidebar?: () => void }> = () => {
   const { currentUser, logout } = useAuth();
   const { setSelectedCaseId } = useCases();
   const { unreadNotifCount, userNotifications, markNotificationAsRead, markAllNotificationsAsRead } = useNotifications();
-  const { setIsNewCaseModalOpen, openEditAccountModal, setActiveTab, searchQuery, setSearchQuery, activeTab, isMobileMenuOpen, setIsMobileMenuOpen } = useUI();
+  const { isDark, toggleTheme, setIsNewCaseModalOpen, openEditAccountModal, setActiveTab, searchQuery, setSearchQuery, activeTab, isMobileMenuOpen, setIsMobileMenuOpen } = useUI();
 
   const [isNotifOpen, setIsNotifOpen] = useState(false);
   const [isRoleDropdownOpen, setIsRoleDropdownOpen] = useState(false);
@@ -190,6 +192,22 @@ export const Header: React.FC<{ onToggleSidebar?: () => void }> = () => {
             <span>Submit report</span>
           </button>
         )}
+
+        {/* Theme Mode Toggle (Light / Dark) */}
+        <button
+          id="btn-theme-toggle-header"
+          type="button"
+          onClick={toggleTheme}
+          title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+          aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+          className="p-2 rounded-full transition-colors cursor-pointer relative border bg-paper-2 hover:bg-paper-3 text-ink border-rule active:translate-y-px focus-visible:ring-2 focus-visible:ring-focus"
+        >
+          {isDark ? (
+            <Sun className="w-4 h-4 text-amber-400" />
+          ) : (
+            <Moon className="w-4 h-4 text-ink-2" />
+          )}
+        </button>
 
         {/* Notification Bell with Role Badge */}
         <div className="relative">
