@@ -30,7 +30,6 @@ export const CaseDetailModal: React.FC = () => {
   const { currentUser } = useAuth();
   const { selectedCase, setSelectedCaseId, updateCaseStatus, recordLguInterventionAction, deleteCase } = useCases();
 
-  const [activeTab, setActiveTab] = useState<'overview' | 'timeline'>('overview');
   
   // Status modal state
   const [isStatusModalOpen, setIsStatusModalOpen] = useState(false);
@@ -229,37 +228,8 @@ export const CaseDetailModal: React.FC = () => {
           </div>
         </div>
 
-        {/* Navigation Tabs within Case Dossier */}
-        <div className="px-5 border-b border-rule bg-paper flex space-x-4 text-xs font-semibold overflow-x-auto">
-          {[
-            { id: 'overview', label: 'Case overview', count: undefined },
-            { id: 'timeline', label: 'Chronological timeline', count: selectedCase.timeline?.length || 0 }
-          ].map((t) => (
-            <button
-              key={t.id}
-              type="button"
-              onClick={() => setActiveTab(t.id as 'overview' | 'timeline')}
-              className={`py-2.5 border-b-2 transition-colors whitespace-nowrap cursor-pointer flex items-center gap-1.5 focus-visible:ring-2 focus-visible:ring-focus focus-visible:outline-hidden ${
-                activeTab === t.id
-                  ? 'border-accent text-accent font-bold'
-                  : 'border-transparent text-muted hover:text-ink'
-              }`}
-            >
-              <span>{t.label}</span>
-              {t.count !== undefined && (
-                <span className="px-1.5 py-0.2 bg-paper-2 text-ink border border-rule rounded text-[10px] num">
-                  {t.count}
-                </span>
-              )}
-            </button>
-          ))}
-        </div>
-
         {/* Modal Scrollable Body */}
-        <div className="flex-1 overflow-y-auto p-5 text-xs">
-          {/* TAB 1: OVERVIEW & PARTIES */}
-          {activeTab === 'overview' && (
-            <div className="space-y-6">
+        <div className="flex-1 overflow-y-auto p-5 text-xs space-y-6">
               {/* Auto-Consolidated Single Report Banner */}
               {isConsolidatedCase(selectedCase) && (
                 <div id="case-auto-deduplicated-callout" className="bg-paper-2 border border-rule rounded-xl p-4 space-y-2 text-ink shadow-xs">
@@ -575,48 +545,6 @@ export const CaseDetailModal: React.FC = () => {
                   </div>
                 </div>
               )}
-            </div>
-          )}
-
-          {/* TAB 2: TIMELINE */}
-          {activeTab === 'timeline' && (
-            <div className="space-y-4">
-              <div>
-                <h3 className="font-semibold text-ink text-xs">
-                  Full case chronology and audit chain
-                </h3>
-                <p className="text-xs text-muted">Every action, hearing, referral, and status update</p>
-              </div>
-
-              <div className="relative pl-6 space-y-4 before:absolute before:left-2.5 before:top-2 before:bottom-2 before:w-px before:bg-rule">
-                {(!selectedCase.timeline || selectedCase.timeline.length === 0) ? (
-                  <div className="text-muted py-4">No timeline events recorded.</div>
-                ) : (
-                  selectedCase.timeline.map((event, idx) => (
-                    <div key={event.id ? `${event.id}-${idx}` : `event-${idx}`} className="relative group">
-                      <div className="absolute -left-6 top-1 w-3 h-3 rounded-full border-2 border-paper bg-accent shadow-xs" />
-                      <div className="bg-paper-2 p-3 rounded-lg border border-rule space-y-1">
-                        <div className="flex flex-wrap items-center justify-between gap-1">
-                          <span className="font-semibold text-xs text-ink">{event.title}</span>
-                          <span className="text-xs text-muted font-mono num">
-                            {formatDate(event.timestamp)}
-                          </span>
-                        </div>
-                        <p className="text-xs text-muted">{event.description}</p>
-                        <div className="text-[11px] text-muted flex items-center gap-2 pt-1 border-t border-rule">
-                          <span className="font-medium text-ink">Action by: {event.actorName}</span>
-                          <span>·</span>
-                          <span>{event.actorRole}</span>
-                          <span>·</span>
-                          <span className="text-accent font-semibold">{event.actorAgency}</span>
-                        </div>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-          )}
         </div>
 
         {/* Footer */}
