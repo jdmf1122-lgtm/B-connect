@@ -8,7 +8,8 @@ import {
   Save,
   KeyRound,
   Eye,
-  EyeOff
+  EyeOff,
+  Trash2
 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { AgencyType, UserRole, User } from '../../types';
@@ -54,8 +55,9 @@ export const EditAccountModal: React.FC<EditAccountModalProps> = ({
   onClose,
   userToEdit
 }) => {
-  const { currentUser, updateUser } = useAuth();
+  const { currentUser, updateUser, deleteUser } = useAuth();
   const targetUser = userToEdit || currentUser;
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   const [name, setName] = useState('');
   const [position, setPosition] = useState('');
@@ -348,22 +350,59 @@ export const EditAccountModal: React.FC<EditAccountModalProps> = ({
           </div>
 
           {/* Action buttons */}
-          <div className="pt-4 border-t border-rule flex items-center justify-end gap-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 bg-paper hover:bg-paper-3 text-ink border border-rule rounded-lg text-xs font-semibold transition-colors active:scale-[0.98] cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Cancel
-            </button>
-            <button
-              id="btn-submit-edit-account"
-              type="submit"
-              className="px-4 py-2 bg-accent text-accent-ink hover:opacity-90 rounded-lg text-xs font-bold transition-opacity active:scale-[0.98] flex items-center gap-1.5 shadow-xs cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <Save className="w-3.5 h-3.5" />
-              <span className="whitespace-nowrap">Save Changes</span>
-            </button>
+          <div className="pt-4 border-t border-rule flex flex-wrap items-center justify-between gap-2">
+            {targetUser.agencyType === 'RESIDENT' ? (
+              !confirmDelete ? (
+                <button
+                  type="button"
+                  onClick={() => setConfirmDelete(true)}
+                  className="px-3 py-2 bg-error/10 hover:bg-error/20 text-error border border-error/30 rounded-lg text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Delete Account</span>
+                </button>
+              ) : (
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onClose();
+                      deleteUser(targetUser.id);
+                    }}
+                    className="px-3 py-2 bg-error text-white rounded-lg text-xs font-bold cursor-pointer hover:opacity-95"
+                  >
+                    Confirm Delete
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setConfirmDelete(false)}
+                    className="px-2.5 py-2 bg-paper-2 border border-rule text-ink rounded-lg text-xs font-semibold cursor-pointer"
+                  >
+                    No
+                  </button>
+                </div>
+              )
+            ) : (
+              <div />
+            )}
+
+            <div className="flex items-center gap-2 ml-auto">
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-4 py-2 bg-paper hover:bg-paper-3 text-ink border border-rule rounded-lg text-xs font-semibold transition-colors active:scale-[0.98] cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Cancel
+              </button>
+              <button
+                id="btn-submit-edit-account"
+                type="submit"
+                className="px-4 py-2 bg-accent text-accent-ink hover:opacity-90 rounded-lg text-xs font-bold transition-opacity active:scale-[0.98] flex items-center gap-1.5 shadow-xs cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <Save className="w-3.5 h-3.5" />
+                <span className="whitespace-nowrap">Save Changes</span>
+              </button>
+            </div>
           </div>
         </form>
       </div>

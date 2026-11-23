@@ -25,7 +25,9 @@ import {
   ArrowLeft,
   Info,
   Plus,
-  Check
+  Check,
+  Trash2,
+  KeyRound
 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { useCases } from '../../hooks/useCases';
@@ -38,6 +40,7 @@ import { CreateNotificationModal } from './CreateNotificationModal';
 
 type ResidentProfileSubView =
   | 'MAIN'
+  | 'ACCOUNT_MGMT'
   | 'LOCATION'
   | 'ABOUT'
   | 'SCOPE'
@@ -46,7 +49,7 @@ type ResidentProfileSubView =
   | 'SUGGESTIONS';
 
 export const Header: React.FC<{ onToggleSidebar?: () => void }> = () => {
-  const { currentUser, logout, updateUser } = useAuth();
+  const { currentUser, logout, updateUser, deleteUser } = useAuth();
   const { setSelectedCaseId } = useCases();
   const { unreadNotifCount, userNotifications, markNotificationAsRead, markAllNotificationsAsRead, triggerNotification } = useNotifications();
   const { isDark, toggleTheme, setIsNewCaseModalOpen, openEditAccountModal, setActiveTab, searchQuery, setSearchQuery, activeTab, isMobileMenuOpen, setIsMobileMenuOpen } = useUI();
@@ -56,6 +59,7 @@ export const Header: React.FC<{ onToggleSidebar?: () => void }> = () => {
   const [isCreateNotifModalOpen, setIsCreateNotifModalOpen] = useState(false);
   const [notifFilter, setNotifFilter] = useState<'ALL' | 'UNREAD'>('ALL');
   const [profileSubView, setProfileSubView] = useState<ResidentProfileSubView>('MAIN');
+  const [confirmDeleteAccount, setConfirmDeleteAccount] = useState(false);
   const [suggestionText, setSuggestionText] = useState('');
   const [suggestionSubmitted, setSuggestionSubmitted] = useState(false);
 
@@ -534,17 +538,19 @@ export const Header: React.FC<{ onToggleSidebar?: () => void }> = () => {
                         <h3 className="text-lg font-extrabold tracking-tight text-white">
                           {profileSubView === 'MAIN'
                             ? 'Profile'
-                            : profileSubView === 'LOCATION'
-                              ? 'Change Location'
-                              : profileSubView === 'ABOUT'
-                                ? 'About B-CONNECT'
-                                : profileSubView === 'SCOPE'
-                                  ? 'Scope & Limitations'
-                                  : profileSubView === 'TERMS'
-                                    ? 'Terms of Service'
-                                    : profileSubView === 'PRIVACY'
-                                      ? 'Privacy Policy'
-                                      : 'Suggestions & Requests'}
+                            : profileSubView === 'ACCOUNT_MGMT'
+                              ? 'Account Management'
+                              : profileSubView === 'LOCATION'
+                                ? 'Change Location'
+                                : profileSubView === 'ABOUT'
+                                  ? 'About B-CONNECT'
+                                  : profileSubView === 'SCOPE'
+                                    ? 'Scope & Limitations'
+                                    : profileSubView === 'TERMS'
+                                      ? 'Terms of Service'
+                                      : profileSubView === 'PRIVACY'
+                                        ? 'Privacy Policy'
+                                        : 'Suggestions & Requests'}
                         </h3>
                       </div>
 
@@ -565,9 +571,18 @@ export const Header: React.FC<{ onToggleSidebar?: () => void }> = () => {
 
                         <div className="flex items-center gap-3.5">
                           <div className="relative flex-shrink-0">
-                            <div className="w-14 h-14 rounded-full bg-emerald-500 text-white flex items-center justify-center text-2xl font-bold shadow-inner select-none border border-emerald-300/30">
-                              {(currentUser.name || 'R').trim().charAt(0).toUpperCase()}
-                            </div>
+                            {currentUser.avatarUrl && currentUser.avatarUrl.startsWith('http') ? (
+                              <img
+                                src={currentUser.avatarUrl}
+                                alt={currentUser.name}
+                                referrerPolicy="no-referrer"
+                                className="w-14 h-14 rounded-full object-cover shadow-inner border border-emerald-300/30"
+                              />
+                            ) : (
+                              <div className="w-14 h-14 rounded-full bg-emerald-500 text-white flex items-center justify-center text-2xl font-bold shadow-inner select-none border border-emerald-300/30">
+                                {(currentUser.name || 'R').trim().charAt(0).toUpperCase()}
+                              </div>
+                            )}
                             <button
                               type="button"
                               onClick={() => {
@@ -645,8 +660,8 @@ export const Header: React.FC<{ onToggleSidebar?: () => void }> = () => {
                               id="btn-resident-profile-account-mgmt"
                               type="button"
                               onClick={() => {
-                                setIsRoleDropdownOpen(false);
-                                openEditAccountModal(currentUser);
+                                setConfirmDeleteAccount(false);
+                                setProfileSubView('ACCOUNT_MGMT');
                               }}
                               className="w-full text-left bg-paper hover:bg-paper-3 border border-rule rounded-xl p-3.5 flex items-center gap-3.5 shadow-2xs transition-colors cursor-pointer"
                             >
@@ -743,6 +758,85 @@ export const Header: React.FC<{ onToggleSidebar?: () => void }> = () => {
                             </button>
                           </div>
                         </>
+                      )}
+
+                      {/* SUB-VIEW: ACCOUNT MANAGEMENT (Edit Credentials & Delete Account) */}
+                      {profileSubView === 'ACCOUNT_MGMT' && (
+                        <div className="space-y-3">
+                          <div className="bg-paper border border-rule rounded-xl p-4 space-y-3">
+                            <div className="flex items-center gap-2.5">
+                              <KeyRound className="w-4 h-4 text-emerald-700 dark:text-accent flex-shrink-0" />
+                              <div>
+                                <div className="text-xs font-bold text-ink">Credentials &amp; Profile Settings</div>
+                                <div className="text-[11px] text-muted">
+                                  Update your display name, email, or account password
+                                </div>
+                              </div>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setIsRoleDropdownOpen(false);
+                                openEditAccountModal(currentUser);
+                              }}
+                              className="w-full py-2 px-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+                            >
+                              <Edit3 className="w-3.5 h-3.5" />
+                              <span>Edit Profile &amp; Change Password</span>
+                            </button>
+                          </div>
+
+                          {/* Danger Zone: Delete Account */}
+                          <div className="bg-paper border border-error/40 rounded-xl p-4 space-y-3">
+                            <div className="flex items-start gap-2.5">
+                              <Trash2 className="w-4 h-4 text-error flex-shrink-0 mt-0.5" />
+                              <div>
+                                <div className="text-xs font-bold text-error">Delete Account</div>
+                                <p className="text-[11px] text-muted mt-0.5 leading-relaxed">
+                                  Permanently remove your resident account ({currentUser.email}) from the B-CONNECT system.
+                                </p>
+                              </div>
+                            </div>
+
+                            {!confirmDeleteAccount ? (
+                              <button
+                                id="btn-resident-delete-account-init"
+                                type="button"
+                                onClick={() => setConfirmDeleteAccount(true)}
+                                className="w-full py-2 px-3 bg-error/10 hover:bg-error/20 text-error border border-error/30 rounded-lg text-xs font-bold transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                                <span>Delete My Account</span>
+                              </button>
+                            ) : (
+                              <div className="p-3 bg-paper-2 border border-error/40 rounded-lg space-y-2.5">
+                                <p className="text-[11px] font-semibold text-ink leading-snug">
+                                  Are you sure you want to permanently delete your account? This action cannot be undone.
+                                </p>
+                                <div className="flex items-center gap-2">
+                                  <button
+                                    type="button"
+                                    onClick={() => setConfirmDeleteAccount(false)}
+                                    className="flex-1 py-1.5 px-3 bg-paper hover:bg-paper-3 border border-rule text-ink rounded-md text-xs font-semibold cursor-pointer"
+                                  >
+                                    Cancel
+                                  </button>
+                                  <button
+                                    id="btn-resident-delete-account-confirm"
+                                    type="button"
+                                    onClick={() => {
+                                      setIsRoleDropdownOpen(false);
+                                      deleteUser(currentUser.id);
+                                    }}
+                                    className="flex-1 py-1.5 px-3 bg-error text-white rounded-md text-xs font-bold cursor-pointer hover:opacity-95"
+                                  >
+                                    Yes, Delete
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
                       )}
 
                       {/* SUB-VIEW: ABOUT */}

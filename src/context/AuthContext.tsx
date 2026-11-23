@@ -105,24 +105,77 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   });
 
   useEffect(() => {
+    const resolveOrProvisionSessionUser = async (authUser: any): Promise<User | null> => {
+      if (!authUser) return null;
+
+      let { data: profile } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', authUser.id)
+        .maybeSingle();
+
+      if (!profile && authUser.email) {
+        const { data: emailProfile } = await supabase
+          .from('users')
+          .select('*')
+          .ilike('email', authUser.email)
+          .maybeSingle();
+        profile = emailProfile;
+      }
+
+      // Auto-provision Resident profile if user signed in via real Google OAuth for the first time
+      if (!profile && authUser.email) {
+        const meta = authUser.user_metadata || {};
+        const pendingBrgy = localStorage.getItem('bconnect_pending_google_barangay') || 'Bagumbayan';
+        const displayName =
+          meta.full_name ||
+          meta.name ||
+          authUser.email.split('@')[0].replace(/[._-]/g, ' ');
+        const autoProfile: User = {
+          id: authUser.id,
+          name: displayName,
+          role: 'RESIDENT',
+          agencyType: 'RESIDENT',
+          agencyName: `Barangay ${pendingBrgy} Resident Citizen`,
+          barangay: pendingBrgy,
+          position: 'Verified Resident Citizen',
+          badgeOrIdNumber: `RES-${pendingBrgy.slice(0, 3).toUpperCase()}-${Math.floor(1000 + Math.random() * 9000)}`,
+          email: authUser.email,
+          avatarUrl: meta.avatar_url || meta.picture || '/bconnect_logo_transparent.png'
+        };
+        const { avatarUrl: _a, ...dbRow } = autoProfile as any;
+        await supabase.from('users').upsert(dbRow, { onConflict: 'id' });
+        profile = autoProfile;
+
+        setUsers((prev) => {
+          const filtered = (prev || []).filter((u) => u.id !== autoProfile.id && u.email !== autoProfile.email);
+          const updated = [...filtered, autoProfile];
+          localStorage.setItem('bconnect_roxas_users_v11', JSON.stringify(updated));
+          return updated;
+        });
+      }
+
+      if (profile) {
+        const profileUser = profile as User;
+        const meta = authUser.user_metadata || {};
+        if (!profileUser.avatarUrl) {
+          if (profileUser.agencyType === 'MDRRMO') profileUser.avatarUrl = '/mdrrmo_logo.png';
+          else if (profileUser.agencyType === 'LGU') profileUser.avatarUrl = '/lgu_logo.png';
+          else profileUser.avatarUrl = meta.avatar_url || meta.picture || '/bconnect_logo_transparent.png';
+        }
+        return profileUser;
+      }
+      return null;
+    };
+
     const checkSession = async () => {
       setIsAuthLoading(true);
       try {
         const { data: { session } } = await supabase.auth.getSession();
 
         if (session?.user) {
-          const { data: profile } = await supabase
-            .from('users')
-            .select('*')
-            .eq('id', session.user.id)
-            .single();
-
-          if (profile) {
-            const profileUser = profile as User;
-            if (!profileUser.avatarUrl) {
-              if (profileUser.agencyType === 'MDRRMO') profileUser.avatarUrl = '/mdrrmo_logo.png';
-              else if (profileUser.agencyType === 'LGU') profileUser.avatarUrl = '/lgu_logo.png';
-            }
+          const profileUser = await resolveOrProvisionSessionUser(session.user);
+          if (profileUser) {
             setCurrentUserState(profileUser);
             setIsAuthenticated(true);
             localStorage.setItem('bconnect_roxas_user_v11', JSON.stringify(profileUser));
@@ -215,16 +268,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (session?.user) {
-        const { data: profile } = await supabase
-          .from('users')
-          .select('*')
-          .eq('id', session.user.id)
-          .single();
-
-        if (profile) {
-          setCurrentUserState(profile as User);
+        const profileUser = await resolveOrProvisionSessionUser(session.user);
+        if (profileUser) {
+          setCurrentUserState(profileUser);
           setIsAuthenticated(true);
-          localStorage.setItem('bconnect_roxas_user_v11', JSON.stringify(profile));
+          localStorage.setItem('bconnect_roxas_user_v11', JSON.stringify(profileUser));
           localStorage.setItem('bconnect_roxas_auth_status_v11', 'true');
         }
       } else if (event === 'SIGNED_OUT') {

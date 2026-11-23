@@ -333,22 +333,39 @@ export const useAuth = () => {
   };
 
   const deleteUser = (userId: string) => {
-    setUsers((prev) => {
-      const updated = (prev || []).filter((u) => u.id !== userId);
-      localStorage.setItem('bconnect_roxas_users_v11', JSON.stringify(updated));
+    const target = (users || []).find((u) => u.id === userId) || (currentUser?.id === userId ? currentUser : undefined);
 
-      if (currentUser?.id === userId) {
-        if (updated.length > 0) {
-          setCurrentUserState(updated[0]);
-          localStorage.setItem('bconnect_roxas_user_v11', JSON.stringify(updated[0]));
-        } else {
-          setIsAuthenticated(false);
-          localStorage.removeItem('bconnect_roxas_user_v11');
-          localStorage.setItem('bconnect_roxas_auth_status_v11', 'false');
-        }
-      }
+    // 1. Delete from Supabase public.users table
+    supabase.from('users').delete().eq('id', userId).then(({ error }) => {
+      if (error) console.warn('Supabase delete user notice:', error);
+    });
+
+    // 2. Remove from local passcode vault
+    try {
+      const vault = JSON.parse(localStorage.getItem('bconnect_passcodes_vault') || '{}');
+      if (target?.email) delete vault[target.email.toLowerCase()];
+      if (userId) delete vault[userId.toLowerCase()];
+      localStorage.setItem('bconnect_passcodes_vault', JSON.stringify(vault));
+    } catch (e) {}
+
+    // 3. Remove from users state and localStorage
+    setUsers((prev) => {
+      const updated = (prev || []).filter((u) => u.id !== userId && (!target?.email || u.email !== target.email));
+      localStorage.setItem('bconnect_roxas_users_v11', JSON.stringify(updated));
       return updated;
     });
+
+    // 4. If deleting the currently logged-in account, sign out immediately to AuthPage
+    if (currentUser?.id === userId) {
+      try {
+        supabase.auth.signOut().catch(() => {});
+      } catch (e) {}
+      localStorage.removeItem('bconnect_roxas_user_v11');
+      localStorage.setItem('bconnect_roxas_auth_status_v11', 'false');
+      setCurrentUserState(DEFAULT_BLANK_USER);
+      setIsAuthenticated(false);
+    }
+
     logActivity('ACCOUNT_DELETED', undefined, `Removed user account ID ${userId}`);
   };
 
