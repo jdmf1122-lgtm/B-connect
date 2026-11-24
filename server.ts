@@ -22,7 +22,7 @@ const supabaseAdmin = SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY
   : null;
 
 app.use(cors({
-  origin: 'http://localhost:3000', // Vite dev server
+  origin: true,
   credentials: true
 }));
 

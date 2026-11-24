@@ -283,7 +283,7 @@ export const LguDashboard: React.FC = () => {
                 <p>Municipal incident reports will appear here as they are received.</p>
               </div>
             ) : (
-              safeCases.slice(0, 8).map((c) => (
+              safeCases.map((c) => (
                 <div
                   key={c.id}
                   data-testid={`case-row-${c.id}`}

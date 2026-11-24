@@ -373,7 +373,7 @@ export const MdrrmoDashboard: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-rule font-medium">
-              {mdrrmoCases.slice(0, 8).map((c) => (
+              {mdrrmoCases.map((c) => (
                 <tr
                   key={c.id}
                   onClick={() => setSelectedCaseId(c.id)}

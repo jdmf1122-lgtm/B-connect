@@ -74,7 +74,6 @@ export const CaseProvider: React.FC<{ children: ReactNode; isAuthenticated: bool
 
   useEffect(() => {
     const fetchData = async () => {
-      if (!isAuthenticated) return;
       try {
         const [casesRes, logsRes] = await Promise.all([
           supabase.from('cases').select('*').order('dateCreated', { ascending: false }),
@@ -86,46 +85,34 @@ export const CaseProvider: React.FC<{ children: ReactNode; isAuthenticated: bool
           fetchedCases = casesRes.data;
         } else {
           try {
-            const backendUrl = (import.meta as any).env?.VITE_BACKEND_URL || (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') ? 'http://localhost:3001' : '');
-            if (backendUrl) {
-              const resp = await fetch(`${backendUrl}/api/cases`);
-              if (resp.ok) {
-                const json = await resp.json();
-                if (Array.isArray(json.cases)) {
-                  fetchedCases = json.cases;
-                }
+            const resp = await fetch('/api/cases');
+            if (resp.ok) {
+              const json = await resp.json();
+              if (Array.isArray(json.cases) && json.cases.length > 0) {
+                fetchedCases = json.cases;
               }
             }
           } catch (e) {}
         }
 
         if (fetchedCases && Array.isArray(fetchedCases)) {
-          const sanitized = fetchedCases.map((c: any) => sanitizeCaseBarangay(c));
-          const { cleanedCases, removedDuplicates } = deduplicateCaseList(sanitized);
-
-          if (removedDuplicates.length > 0) {
-            for (const { duplicate, primary } of removedDuplicates) {
-              supabase.from('cases').delete().eq('id', duplicate.id).then(({ error }) => {
-                if (error) console.warn('Supabase duplicate removal notice:', error);
-              });
-              supabase.from('cases').update({
-                imageUrls: primary.imageUrls,
-                witnesses: primary.witnesses,
-                personsInvolved: primary.personsInvolved,
-                timeline: primary.timeline,
-                dateLastUpdated: primary.dateLastUpdated
-              }).eq('id', primary.id).then(({ error }) => {
-                if (error) console.warn('Supabase primary update notice:', error);
-              });
-            }
-          }
+          const remoteCases = fetchedCases.map((c: any) => sanitizeCaseBarangay(c));
+          const remoteIds = new Set(remoteCases.map((c) => c.id));
 
           setCases((prev) => {
-            if (cleanedCases.length === 0 && prev.length > 0) return prev;
+            if (remoteCases.length === 0 && prev.length > 0) return prev;
             const mergedMap = new Map<string, Case>();
-            cleanedCases.forEach((c) => mergedMap.set(c.id, c));
+            // 1. Add all cases from Supabase database (both old & new)
+            remoteCases.forEach((c) => mergedMap.set(c.id, c));
+            // 2. Preserve any locally created case not yet in remote and push it to Supabase
+            (prev || []).forEach((localCase) => {
+              if (localCase?.id && !remoteIds.has(localCase.id)) {
+                mergedMap.set(localCase.id, localCase);
+              }
+            });
             return Array.from(mergedMap.values()).sort((a, b) =>
-              new Date(b.dateCreated || b.dateReported).getTime() - new Date(a.dateCreated || a.dateReported).getTime()
+              new Date(b.dateCreated || b.dateReported || 0).getTime() -
+              new Date(a.dateCreated || a.dateReported || 0).getTime()
             );
           });
         }

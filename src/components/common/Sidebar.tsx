@@ -76,10 +76,7 @@ export const Sidebar: React.FC = () => {
     // 1. MDRRMO ACCOUNT VIEW (Emergency dispatch, rescue ops, municipal crash blotter)
     if (isMdrrmo) {
       const isMdrrmoAdmin = currentUser.role === 'MDRRMO_ADMIN';
-      const brgyName = currentUser.barangay;
-      const mdrrmoCases = brgyName
-        ? safeCases.filter(c => c.barangay === brgyName || (c.originatingAgency && c.originatingAgency.includes(brgyName)))
-        : safeCases;
+      const mdrrmoCases = safeCases;
 
       return [
         {

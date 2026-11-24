@@ -115,25 +115,16 @@ export const UIProvider: React.FC<{ children: ReactNode; currentUser?: User | nu
   const [isEditAccountModalOpen, setIsEditAccountModalOpen] = useState<boolean>(false);
   const [userToEdit, setUserToEdit] = useState<User | null>(null);
   const [searchQuery, setSearchQuery] = useState<string>('');
-  const [filterBarangay, setFilterBarangay] = useState<string>(() => {
-    const saved = localStorage.getItem(LOCAL_STORAGE_USER_KEY);
-    if (saved) {
-      try {
-        const u = JSON.parse(saved);
-        if ((u?.agencyType === 'MDRRMO' || u?.agencyType === 'BARANGAY') && u.barangay) return u.barangay;
-      } catch {}
-    }
-    return 'ALL';
-  });
+  const [filterBarangay, setFilterBarangay] = useState<string>('ALL');
   const [filterStatus, setFilterStatus] = useState<string>('ALL');
   const [filterCategory, setFilterCategory] = useState<string>('ALL');
   const [filterOfficialInvolved, setFilterOfficialInvolved] = useState<'ALL' | 'YES' | 'NO'>('ALL');
   const [filterAgency, setFilterAgency] = useState<string>('ALL');
 
-  // Auto-align filterBarangay whenever active user changes
+  // Auto-align filterBarangay to ALL for MDRRMO and LGU so all cases are visible
   useEffect(() => {
-    if ((currentUser?.agencyType === 'MDRRMO' || (currentUser?.agencyType as string) === 'BARANGAY') && currentUser.barangay) {
-      setFilterBarangay(currentUser.barangay);
+    if (currentUser?.agencyType === 'MDRRMO' || currentUser?.agencyType === 'LGU' || currentUser?.agencyType === 'ADMIN') {
+      setFilterBarangay('ALL');
     }
   }, [currentUser]);
 

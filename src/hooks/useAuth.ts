@@ -52,13 +52,117 @@ export const useAuth = () => {
     supabase.from('notifications').insert(newNotif).then(({error}) => { if (error) console.error(error) });
   };
 
+  const isUuid = (val?: string) =>
+    Boolean(val && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val));
+
+  const ensureUserSyncedToDatabase = async (userObj: User, rawPasscode?: string): Promise<User> => {
+    const cleanEmail = (userObj.email || '').trim().toLowerCase();
+    if (!cleanEmail) return userObj;
+
+    let resolvedUuid: string | undefined = isUuid(userObj.id) ? userObj.id : undefined;
+    const cleanPass = (rawPasscode || (userObj as any).passcode || 'BConnect2026!').trim();
+    const validPass = cleanPass.length >= 6 ? cleanPass : `${cleanPass}2026`;
+
+    try {
+      // 1. Check if email already exists in public.users
+      const { data: existingPublic } = await supabase
+        .from('users')
+        .select('id')
+        .ilike('email', cleanEmail)
+        .maybeSingle();
+
+      if (existingPublic?.id && isUuid(existingPublic.id)) {
+        resolvedUuid = existingPublic.id;
+      }
+
+      // 2. If not found in public.users, create or locate in auth.users via admin API
+      if (!resolvedUuid && (supabase.auth as any).admin?.createUser) {
+        const { data: adminCreated, error: adminErr } = await (supabase.auth as any).admin.createUser({
+          email: cleanEmail,
+          password: validPass,
+          email_confirm: true,
+          user_metadata: {
+            name: userObj.name,
+            role: userObj.role,
+            agencyType: userObj.agencyType,
+            agencyName: userObj.agencyName,
+            position: userObj.position,
+            badgeOrIdNumber: userObj.badgeOrIdNumber,
+            barangay: userObj.barangay,
+            avatarUrl: userObj.avatarUrl
+          }
+        });
+
+        if (adminCreated?.user?.id) {
+          resolvedUuid = adminCreated.user.id;
+        } else if (adminErr && (supabase.auth as any).admin?.listUsers) {
+          const { data: listData } = await (supabase.auth as any).admin.listUsers();
+          const foundAuth = listData?.users?.find(
+            (au: any) => (au.email || '').toLowerCase() === cleanEmail
+          );
+          if (foundAuth?.id) {
+            resolvedUuid = foundAuth.id;
+          }
+        }
+      }
+
+      // 3. Fallback to standard signUp if admin API is unavailable
+      if (!resolvedUuid) {
+        const { data: signUpData } = await supabase.auth.signUp({
+          email: cleanEmail,
+          password: validPass,
+          options: {
+            data: {
+              name: userObj.name,
+              role: userObj.role,
+              agencyType: userObj.agencyType,
+              agencyName: userObj.agencyName,
+              position: userObj.position,
+              badgeOrIdNumber: userObj.badgeOrIdNumber,
+              barangay: userObj.barangay,
+              avatarUrl: userObj.avatarUrl
+            }
+          }
+        });
+        if (signUpData?.user?.id) {
+          resolvedUuid = signUpData.user.id;
+        }
+      }
+
+      // 4. Upsert strictly valid public.users columns once we have a valid UUID
+      if (resolvedUuid && isUuid(resolvedUuid)) {
+        const dbRow: Record<string, any> = {
+          id: resolvedUuid,
+          legacy_id: !isUuid(userObj.id) ? userObj.id : undefined,
+          name: userObj.name,
+          role: userObj.role,
+          agencyType: userObj.agencyType,
+          agencyName: userObj.agencyName,
+          barangay: userObj.barangay || null,
+          position: userObj.position || 'Verified Resident Citizen',
+          badgeOrIdNumber: userObj.badgeOrIdNumber || null,
+          email: cleanEmail,
+          phone: userObj.phone || null,
+          address: userObj.address || null,
+          avatarUrl: userObj.avatarUrl || '/bconnect_logo_transparent.png'
+        };
+        await supabase.from('users').upsert(dbRow, { onConflict: 'id' });
+        return { ...userObj, id: resolvedUuid };
+      }
+    } catch (syncErr) {
+      console.warn('Database user sync notice:', syncErr);
+    }
+
+    return userObj;
+  };
+
   const login = (user: User) => {
     const fallbackLogo =
       user.agencyType === 'MDRRMO'
         ? '/mdrrmo_logo.png'
         : user.agencyType === 'LGU'
         ? '/lgu_logo.png'
-        : user.avatarUrl;
+        : user.avatarUrl || '/bconnect_logo_transparent.png';
 
     const userWithLogo: User = {
       ...user,
@@ -69,6 +173,23 @@ export const useAuth = () => {
     localStorage.setItem('bconnect_roxas_user_v11', JSON.stringify(userWithLogo));
     localStorage.setItem('bconnect_roxas_auth_status_v11', 'true');
     try { sessionStorage.removeItem('acknowledged_accident_alarms'); } catch (e) {}
+
+    // Ensure any logged-in account (from laptop or mobile) exists in Supabase public.users
+    ensureUserSyncedToDatabase(userWithLogo).then((syncedUser) => {
+      if (syncedUser.id !== userWithLogo.id) {
+        setCurrentUserState(syncedUser);
+        localStorage.setItem('bconnect_roxas_user_v11', JSON.stringify(syncedUser));
+        setUsers((prev) => {
+          const filtered = (prev || []).filter(
+            (u) => u.id !== userWithLogo.id && u.id !== syncedUser.id && u.email !== syncedUser.email
+          );
+          const updated = [...filtered, syncedUser];
+          localStorage.setItem('bconnect_roxas_users_v11', JSON.stringify(updated));
+          return updated;
+        });
+      }
+    });
+
     logActivity('USER_LOGIN', undefined, `Officer ${userWithLogo.name} (${userWithLogo.position}, ${userWithLogo.agencyName}) logged in to B-CONNECT.`);
   };
 
@@ -225,51 +346,27 @@ export const useAuth = () => {
   };
 
   const registerUser = async (newUserData: Omit<User, 'id'> & { id?: string; passcode?: string }): Promise<User> => {
-    let authUserId: string | undefined;
-    const cleanPass = newUserData.passcode?.trim() || '';
-
-    // 1. Sign up user in Supabase Auth with complete metadata (graceful on network failure)
-    try {
-      if (newUserData.email && cleanPass) {
-        const { data: authData, error: authError } = await supabase.auth.signUp({
-          email: newUserData.email,
-          password: cleanPass,
-          options: {
-            data: {
-              name: newUserData.name,
-              role: newUserData.role,
-              agencyType: newUserData.agencyType,
-              agencyName: newUserData.agencyName,
-              position: newUserData.position,
-              badgeOrIdNumber: newUserData.badgeOrIdNumber,
-              barangay: newUserData.barangay
-            }
-          }
-        });
-
-        if (!authError || authError.message.includes('already registered')) {
-          authUserId = authData?.user?.id;
-        }
-      }
-    } catch (authErr) {
-      console.warn('Supabase remote sign up notice:', authErr);
-    }
-
-    const userId = authUserId || newUserData.id || `USR-${newUserData.agencyType.slice(0, 3)}-${Date.now()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
-
+    const cleanPass = newUserData.passcode?.trim() || 'BConnect2026!';
     const fallbackLogo =
       newUserData.agencyType === 'MDRRMO'
         ? '/mdrrmo_logo.png'
         : newUserData.agencyType === 'LGU'
         ? '/lgu_logo.png'
-        : newUserData.avatarUrl;
+        : newUserData.avatarUrl || '/bconnect_logo_transparent.png';
 
-    const newUser: User = {
+    const tempId =
+      newUserData.id ||
+      `USR-${newUserData.agencyType.slice(0, 3)}-${Date.now()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+
+    const initialUser: User = {
       ...newUserData,
-      id: userId,
+      id: tempId,
       passcode: cleanPass,
       avatarUrl: newUserData.avatarUrl || fallbackLogo
     };
+
+    // 1. Directly provision user in Supabase auth.users & public.users with a valid UUID (works on both laptop & mobile)
+    const newUser = await ensureUserSyncedToDatabase(initialUser, cleanPass);
 
     // 2. Save to local passcode vault
     try {
@@ -279,25 +376,14 @@ export const useAuth = () => {
       localStorage.setItem('bconnect_passcodes_vault', JSON.stringify(vault));
     } catch (e) {}
 
-    // 3. Upsert into public.users (strip passcode so PostgreSQL schema does not reject it)
+    // 3. Also notify backend via relative /api/auth/register (works across LAN & mobile via Vite proxy)
     try {
-      const { passcode: _p, ...dbProfile } = newUser as any;
-      await supabase.from('users').upsert(dbProfile, { onConflict: 'id' });
-    } catch (dbErr) {
-      console.warn('Supabase users table upsert notice:', dbErr);
-    }
-
-    // 4. Try backend sync if running
-    const backendUrl = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_BACKEND_URL) || (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') ? 'http://localhost:3001' : '');
-    if (backendUrl) {
-      try {
-        fetch(`${backendUrl}/api/auth/register`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(newUser)
-        }).catch(() => {});
-      } catch (e) {}
-    }
+      fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newUser)
+      }).catch(() => {});
+    } catch (e) {}
 
     // 5. Update in-memory and local storage user state
     setUsers((prev) => {

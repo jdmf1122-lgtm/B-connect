@@ -283,26 +283,47 @@ export const useCases = () => {
       }
     }
 
-    // 1. Direct client insert into Supabase cases table
-    supabase.from('cases').upsert(dbPayload, { onConflict: 'id' }).then(({ error }) => {
-      if (error) {
-        console.error('Direct Supabase insert error:', error.message, error);
-      }
-    });
-
-    // 2. Guarantee database persistence via backend admin service role (when running on localhost or with configured backend)
-    const backendUrl = import.meta.env.VITE_BACKEND_URL || (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') ? 'http://localhost:3001' : '');
-    if (backendUrl) {
+    // 1. Direct client insert into Supabase cases table (auto-resolves any ID collision so old cases are never overwritten)
+    (async () => {
       try {
-        fetch(`${backendUrl}/api/cases`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(dbPayload)
-        }).catch((netErr) => {
-          console.warn('Backend sync notice:', netErr);
-        });
-      } catch (e) { }
-    }
+        const { error } = await supabase.from('cases').insert(dbPayload);
+        if (error && (error.code === '23505' || error.message?.includes('duplicate key'))) {
+          const { data: allDbIds } = await supabase.from('cases').select('id');
+          let dbMax = nextNum;
+          (allDbIds || []).forEach((row: any) => {
+            const m = row.id?.match(/BC-(\d{4})-(\d+)/);
+            if (m && parseInt(m[1], 10) === year) {
+              const n = parseInt(m[2], 10);
+              if (n >= dbMax) dbMax = n + 1;
+            }
+          });
+          const newUniqueId = `BC-${year}-${String(dbMax).padStart(3, '0')}`;
+          const retryPayload = {
+            ...dbPayload,
+            id: newUniqueId,
+            incidentId: `INC-${year}-${String(dbMax).padStart(3, '0')}`,
+            complaintId: `CMP-${year}-${String(dbMax).padStart(3, '0')}`
+          };
+          await supabase.from('cases').insert(retryPayload);
+          setCases((prev) =>
+            prev.map((c) => (c.id === caseId ? { ...c, ...retryPayload } : c))
+          );
+        } else if (error) {
+          console.error('Direct Supabase insert error:', error.message, error);
+        }
+      } catch (e) {
+        console.warn('Supabase case insert notice:', e);
+      }
+    })();
+
+    // 2. Guarantee database persistence via backend admin service role (works on laptop & mobile via relative /api/cases proxy)
+    try {
+      fetch('/api/cases', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(dbPayload)
+      }).catch(() => {});
+    } catch (e) { }
 
     // Instant local cross-tab broadcast (0ms latency)
     if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
