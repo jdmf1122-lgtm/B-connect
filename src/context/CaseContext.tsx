@@ -75,24 +75,26 @@ export const CaseProvider: React.FC<{ children: ReactNode; isAuthenticated: bool
   useEffect(() => {
     const fetchData = async () => {
       try {
+        let fetchedCases: any[] | null = null;
+        try {
+          const resp = await fetch('/api/cases');
+          if (resp.ok) {
+            const json = await resp.json();
+            if (Array.isArray(json.cases) && json.cases.length > 0) {
+              fetchedCases = json.cases;
+            }
+          }
+        } catch (e) {}
+
         const [casesRes, logsRes] = await Promise.all([
-          supabase.from('cases').select('*').order('dateCreated', { ascending: false }),
+          !fetchedCases
+            ? supabase.from('cases').select('*').order('dateCreated', { ascending: false })
+            : Promise.resolve({ data: fetchedCases }),
           supabase.from('audit_logs').select('*').order('timestamp', { ascending: false })
         ]);
 
-        let fetchedCases: any[] | null = null;
-        if (casesRes.data && Array.isArray(casesRes.data) && casesRes.data.length > 0) {
+        if (!fetchedCases && casesRes.data && Array.isArray(casesRes.data) && casesRes.data.length > 0) {
           fetchedCases = casesRes.data;
-        } else {
-          try {
-            const resp = await fetch('/api/cases');
-            if (resp.ok) {
-              const json = await resp.json();
-              if (Array.isArray(json.cases) && json.cases.length > 0) {
-                fetchedCases = json.cases;
-              }
-            }
-          } catch (e) {}
         }
 
         if (fetchedCases && Array.isArray(fetchedCases)) {

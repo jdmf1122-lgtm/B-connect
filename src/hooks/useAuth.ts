@@ -64,24 +64,27 @@ export const useAuth = () => {
     const validPass = cleanPass.length >= 6 ? cleanPass : `${cleanPass}2026`;
 
     try {
-      // 1. Check if email already exists in public.users
-      const { data: existingPublic } = await supabase
-        .from('users')
-        .select('id')
-        .ilike('email', cleanEmail)
-        .maybeSingle();
+      // 1. Call serverless/backend Node API (/api/auth/register) which safely uses SUPABASE_SERVICE_ROLE_KEY in Node.js
+      try {
+        const regRes = await fetch('/api/auth/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ...userObj, email: cleanEmail, passcode: validPass })
+        });
+        if (regRes.ok) {
+          const regJson = await regRes.json();
+          if (regJson?.success && regJson?.user?.id && isUuid(regJson.user.id)) {
+            return { ...userObj, ...regJson.user };
+          }
+        }
+      } catch {}
 
-      if (existingPublic?.id && isUuid(existingPublic.id)) {
-        resolvedUuid = existingPublic.id;
-      }
-
-      // 2. If not found in public.users, create or locate in auth.users via admin API
-      if (!resolvedUuid && (supabase.auth as any).admin?.createUser) {
-        const { data: adminCreated, error: adminErr } = await (supabase.auth as any).admin.createUser({
-          email: cleanEmail,
-          password: validPass,
-          email_confirm: true,
-          user_metadata: {
+      // 2. Fallback to standard Supabase Auth signUp (with publishable anon key)
+      const { data: signUpData } = await supabase.auth.signUp({
+        email: cleanEmail,
+        password: validPass,
+        options: {
+          data: {
             name: userObj.name,
             role: userObj.role,
             agencyType: userObj.agencyType,
@@ -91,62 +94,13 @@ export const useAuth = () => {
             barangay: userObj.barangay,
             avatarUrl: userObj.avatarUrl
           }
-        });
-
-        if (adminCreated?.user?.id) {
-          resolvedUuid = adminCreated.user.id;
-        } else if (adminErr && (supabase.auth as any).admin?.listUsers) {
-          const { data: listData } = await (supabase.auth as any).admin.listUsers();
-          const foundAuth = listData?.users?.find(
-            (au: any) => (au.email || '').toLowerCase() === cleanEmail
-          );
-          if (foundAuth?.id) {
-            resolvedUuid = foundAuth.id;
-          }
         }
+      });
+      if (signUpData?.user?.id) {
+        resolvedUuid = signUpData.user.id;
       }
 
-      // 3. Fallback to standard signUp if admin API is unavailable
-      if (!resolvedUuid) {
-        const { data: signUpData } = await supabase.auth.signUp({
-          email: cleanEmail,
-          password: validPass,
-          options: {
-            data: {
-              name: userObj.name,
-              role: userObj.role,
-              agencyType: userObj.agencyType,
-              agencyName: userObj.agencyName,
-              position: userObj.position,
-              badgeOrIdNumber: userObj.badgeOrIdNumber,
-              barangay: userObj.barangay,
-              avatarUrl: userObj.avatarUrl
-            }
-          }
-        });
-        if (signUpData?.user?.id) {
-          resolvedUuid = signUpData.user.id;
-        }
-      }
-
-      // 4. Upsert strictly valid public.users columns once we have a valid UUID
       if (resolvedUuid && isUuid(resolvedUuid)) {
-        const dbRow: Record<string, any> = {
-          id: resolvedUuid,
-          legacy_id: !isUuid(userObj.id) ? userObj.id : undefined,
-          name: userObj.name,
-          role: userObj.role,
-          agencyType: userObj.agencyType,
-          agencyName: userObj.agencyName,
-          barangay: userObj.barangay || null,
-          position: userObj.position || 'Verified Resident Citizen',
-          badgeOrIdNumber: userObj.badgeOrIdNumber || null,
-          email: cleanEmail,
-          phone: userObj.phone || null,
-          address: userObj.address || null,
-          avatarUrl: userObj.avatarUrl || '/bconnect_logo_transparent.png'
-        };
-        await supabase.from('users').upsert(dbRow, { onConflict: 'id' });
         return { ...userObj, id: resolvedUuid };
       }
     } catch (syncErr) {
@@ -270,11 +224,10 @@ export const useAuth = () => {
         }
       }
 
-      // 5. Try Node backend auth endpoint if running
-      const backendUrl = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_BACKEND_URL) || (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') ? 'http://localhost:3001' : '');
-      if (backendUrl && cleanQuery) {
+      // 5. Try Vercel Serverless / Node backend auth endpoint (/api/auth/login works on Vercel & local proxy)
+      if (cleanQuery) {
         try {
-          const backendRes = await fetch(`${backendUrl}/api/auth/login`, {
+          const backendRes = await fetch('/api/auth/login', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ identifier: cleanQuery, passcode: cleanPasscode })
@@ -282,12 +235,22 @@ export const useAuth = () => {
           if (backendRes.ok) {
             const data = await backendRes.json();
             if (data.success && data.user) {
-              login(data.user as User);
-              return { success: true };
+              matchedUser = data.user as User;
+              // If user also provided a passcode, verify via Supabase Auth if possible
+              if (matchedUser.email && cleanPasscode) {
+                const { data: authData, error: authErr } = await supabase.auth.signInWithPassword({
+                  email: matchedUser.email,
+                  password: cleanPasscode
+                });
+                if (!authErr && authData?.user) {
+                  login(matchedUser);
+                  return { success: true };
+                }
+              }
             }
           }
         } catch (netErr) {
-          // Backend offline or unreachable, fall through to robust local validation
+          // Fall through to local validation
         }
       }
 

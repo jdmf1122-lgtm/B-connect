@@ -50,6 +50,38 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok' });
 });
 
+// Users Listing & Deletion Endpoint
+app.get('/api/users', async (req, res) => {
+  try {
+    if (supabaseAdmin) {
+      const { data, error } = await supabaseAdmin
+        .from('users')
+        .select('*')
+        .order('created_at', { ascending: false });
+      if (error) return res.status(500).json({ success: false, message: error.message });
+      return res.json({ success: true, users: data || [] });
+    }
+    return res.json({ success: true, users: [] });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+app.delete('/api/users', async (req, res) => {
+  const id = (req.query?.id as string) || req.body?.id;
+  try {
+    if (supabaseAdmin && id) {
+      await supabaseAdmin.from('users').delete().eq('id', id);
+      try {
+        await supabaseAdmin.auth.admin.deleteUser(id);
+      } catch {}
+    }
+    return res.json({ success: true });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
 // Robust Multi-Account Authentication Endpoint
 app.post('/api/auth/login', async (req, res) => {
   const { identifier, passcode } = req.body || {};

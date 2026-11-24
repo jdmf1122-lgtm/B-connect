@@ -207,7 +207,22 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     const fetchUsers = async () => {
       try {
-        const { data: dbUsers } = await supabase.from('users').select('*');
+        let dbUsers: any[] | null = null;
+        try {
+          const apiRes = await fetch('/api/users');
+          if (apiRes.ok) {
+            const json = await apiRes.json();
+            if (Array.isArray(json.users) && json.users.length > 0) {
+              dbUsers = json.users;
+            }
+          }
+        } catch {}
+
+        if (!dbUsers) {
+          const { data } = await supabase.from('users').select('*');
+          dbUsers = data;
+        }
+
         const userMap = new Map<string, User>();
         // 1. Add SEED_USERS so official government accounts are always present
         SEED_USERS.forEach((u) => userMap.set(u.email.toLowerCase(), u));
