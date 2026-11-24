@@ -64,9 +64,7 @@ export const MdrrmoDashboard: React.FC = () => {
 
   const totalIncidents = mdrrmoCases.length;
   const resolvedCount = mdrrmoCases.filter((c) => c && (c.status === 'Resolved' || c.status === 'Closed')).length;
-  const pendingCount = mdrrmoCases.filter((c) => c && (c.isPending || c.status === 'Pending')).length;
   const accidentCases = mdrrmoCases.filter((c) => c && (c.isAccidentEmergency || c.category === 'Traffic / Vehicular Incident' || (c.vehicleDetails && c.vehicleDetails.length > 0)));
-  const ambulanceDispatches = mdrrmoCases.filter((c) => c && (c.respondingAmbulanceUnit && c.respondingAmbulanceUnit !== 'None'));
   const urgentCrashes = mdrrmoCases.filter((c) => c && (c.priority === 'Urgent' || c.priority === 'High'));
 
   const handleTestAccidentAlarm = () => {
@@ -271,7 +269,7 @@ export const MdrrmoDashboard: React.FC = () => {
       )}
 
       {/* Metrics Row */}
-      <section aria-label="Incident metrics summary" className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5 sm:gap-3.5">
+      <section aria-label="Incident metrics summary" className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3.5">
         <div className="bg-paper p-4 rounded-xl border border-rule shadow-xs">
           <p className="text-xs text-muted font-medium">Total logged</p>
           <div className="text-2xl sm:text-3xl font-bold mt-1 text-ink num">{totalIncidents}</div>
@@ -286,24 +284,6 @@ export const MdrrmoDashboard: React.FC = () => {
           <div className="text-2xl sm:text-3xl font-bold mt-1 text-warning num">{accidentCases.length}</div>
           <div className="flex items-center gap-2 mt-2 text-[11px] text-muted">
             <span>Road incidents</span>
-            <div className="h-px flex-1 bg-rule" />
-          </div>
-        </div>
-
-        <div className="bg-paper p-4 rounded-xl border border-rule shadow-xs">
-          <p className="text-xs text-muted font-medium">Ambulance trips</p>
-          <div className="text-2xl sm:text-3xl font-bold mt-1 text-error num">{ambulanceDispatches.length}</div>
-          <div className="flex items-center gap-2 mt-2 text-[11px] text-muted">
-            <span>Rescue dispatched</span>
-            <div className="h-px flex-1 bg-rule" />
-          </div>
-        </div>
-
-        <div className="bg-paper p-4 rounded-xl border border-rule shadow-xs">
-          <p className="text-xs text-muted font-medium">Active investigations</p>
-          <div className="text-2xl sm:text-3xl font-bold mt-1 text-accent num">{pendingCount}</div>
-          <div className="flex items-center gap-2 mt-2 text-[11px] text-muted">
-            <span>Ongoing triage</span>
             <div className="h-px flex-1 bg-rule" />
           </div>
         </div>
