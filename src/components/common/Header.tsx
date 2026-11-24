@@ -142,19 +142,8 @@ export const Header: React.FC<{ onToggleSidebar?: () => void }> = () => {
       id="bconnect-main-header"
       className="h-14 bg-paper border-b border-rule flex items-center justify-between px-3 sm:px-6 lg:px-8 sticky top-0 z-40 transition-colors"
     >
-      {/* Left: Mobile hamburger menu & view title */}
+      {/* Left: Agency seal & view title (no duplicate mobile hamburger menu) */}
       <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-        <button
-          id="btn-toggle-mobile-sidebar"
-          type="button"
-          onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-          className="lg:hidden p-2 -ml-1 rounded-md text-ink hover:bg-paper-2 transition-colors cursor-pointer flex-shrink-0 focus-visible:ring-2 focus-visible:ring-focus"
-          aria-label="Open navigation menu"
-          title="Toggle Navigation Menu"
-        >
-          <Menu className="w-5 h-5 text-ink" />
-        </button>
-
         {currentUser.agencyType === 'MDRRMO' ? (
           <div className="flex items-center gap-1.5 flex-shrink-0">
             <img
@@ -513,7 +502,7 @@ export const Header: React.FC<{ onToggleSidebar?: () => void }> = () => {
                 id="role-switcher-dropdown"
                 className={`fixed inset-x-3 top-14 sm:absolute sm:inset-auto sm:right-0 sm:top-full sm:mt-2 w-auto ${
                   isResident ? 'sm:w-[370px]' : 'sm:w-80'
-                } max-w-[calc(100vw-1.5rem)] mx-auto sm:mx-0 bg-paper text-ink rounded-xl shadow-card border border-rule z-50 overflow-hidden flex flex-col max-h-[calc(100dvh-4.5rem)] sm:max-h-[38rem] animate-in fade-in duration-150`}
+                } max-w-[calc(100vw-1.5rem)] mx-auto sm:mx-0 bg-paper text-ink rounded-xl shadow-card border border-rule z-50 overflow-hidden flex flex-col max-h-[calc(100dvh-9rem)] sm:max-h-[38rem] animate-in fade-in duration-150`}
               >
                 {isResident ? (
                   <>
@@ -741,22 +730,6 @@ export const Header: React.FC<{ onToggleSidebar?: () => void }> = () => {
                               </div>
                             </button>
                           </div>
-
-                          {/* Log Out Action */}
-                          <div className="pt-2">
-                            <button
-                              id="btn-role-dropdown-logout"
-                              type="button"
-                              onClick={() => {
-                                setIsRoleDropdownOpen(false);
-                                logout();
-                              }}
-                              className="w-full py-2.5 px-3 bg-error text-white rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-2 cursor-pointer shadow-2xs"
-                            >
-                              <LogOut className="w-4 h-4" />
-                              <span>Log out / switch account</span>
-                            </button>
-                          </div>
                         </>
                       )}
 
@@ -946,6 +919,22 @@ export const Header: React.FC<{ onToggleSidebar?: () => void }> = () => {
                           )}
                         </div>
                       )}
+                    </div>
+
+                    {/* Pinned Bottom Log Out Footer for Resident Profile (Always visible on Mobile & Desktop) */}
+                    <div className="p-3 bg-paper border-t border-rule flex-shrink-0">
+                      <button
+                        id="btn-role-dropdown-logout"
+                        type="button"
+                        onClick={() => {
+                          setIsRoleDropdownOpen(false);
+                          logout();
+                        }}
+                        className="w-full py-2.5 px-3 bg-error hover:opacity-95 text-white rounded-xl text-xs font-bold transition-opacity flex items-center justify-center gap-2 cursor-pointer shadow-2xs"
+                      >
+                        <LogOut className="w-4 h-4" />
+                        <span>Log out / switch account</span>
+                      </button>
                     </div>
                   </>
                 ) : (

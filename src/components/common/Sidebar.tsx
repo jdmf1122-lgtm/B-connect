@@ -20,7 +20,8 @@ import {
   UserPlus,
   Compass,
   Share2,
-  X
+  X,
+  LogOut
 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { useCases } from '../../hooks/useCases';
@@ -28,7 +29,7 @@ import { useNotifications } from '../../hooks/useNotifications';
 import { useUI } from '../../hooks/useUI';
 
 export const Sidebar: React.FC = () => {
-  const { currentUser } = useAuth();
+  const { currentUser, logout } = useAuth();
   const { cases } = useCases();
   const { unreadNotifCount } = useNotifications();
   const { activeTab, setActiveTab, isMobileMenuOpen, setIsMobileMenuOpen } = useUI();
@@ -392,6 +393,22 @@ export const Sidebar: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Sidebar Bottom Log Out Button */}
+      <div className="p-3 border-t border-rule flex-shrink-0">
+        <button
+          id={`btn-sidebar-logout${isMobile ? '-mobile' : ''}`}
+          type="button"
+          onClick={() => {
+            setIsMobileMenuOpen(false);
+            logout();
+          }}
+          className="w-full py-2 px-3 bg-error/10 hover:bg-error text-error hover:text-white border border-error/30 rounded-md text-xs font-bold transition-colors flex items-center justify-center gap-2 cursor-pointer"
+        >
+          <LogOut className="w-4 h-4" />
+          <span>Log out</span>
+        </button>
+      </div>
 
     </>
   );

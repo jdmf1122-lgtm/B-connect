@@ -7,13 +7,14 @@ import {
   Clock,
   BookOpenCheck,
   Eye,
-  Share2
+  Share2,
+  LogOut
 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { useUI } from '../../hooks/useUI';
 
 export const MobileBottomNav: React.FC = () => {
-  const { currentUser } = useAuth();
+  const { currentUser, logout } = useAuth();
   const {
     activeTab,
     setActiveTab,
@@ -95,21 +96,20 @@ export const MobileBottomNav: React.FC = () => {
           <span className="text-xs mt-0.5 leading-tight">My reports</span>
         </button>
 
-        {/* 4. Menu Drawer Toggle */}
+        {/* 4. Log Out (Direct Mobile Logout for Residents instead of duplicate Menu) */}
         <button
-          id="mobile-nav-drawer-toggle"
+          id="mobile-nav-logout"
           type="button"
-          onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-          className={`flex flex-col items-center justify-center flex-1 py-1 transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-focus active:translate-y-px disabled:opacity-50 disabled:cursor-not-allowed ${
-            isMobileMenuOpen
-              ? 'text-accent font-semibold'
-              : 'text-muted hover:text-ink'
-          }`}
+          onClick={() => {
+            setIsMobileMenuOpen(false);
+            logout();
+          }}
+          className="flex flex-col items-center justify-center flex-1 py-1 transition-colors cursor-pointer text-error hover:opacity-80 focus-visible:ring-2 focus-visible:ring-focus active:translate-y-px"
         >
-          <div className={`p-1 rounded-md transition-colors ${isMobileMenuOpen ? 'bg-paper-2 text-accent' : ''}`}>
-            <Menu className="w-5 h-5" />
+          <div className="p-1 rounded-md transition-colors">
+            <LogOut className="w-5 h-5" />
           </div>
-          <span className="text-xs mt-0.5 leading-tight">Menu</span>
+          <span className="text-xs mt-0.5 font-semibold leading-tight">Log out</span>
         </button>
       </nav>
     );
