@@ -20,15 +20,22 @@ CREATE TABLE IF NOT EXISTS public.users (
 -- Enable RLS
 ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
 
--- Policy: Allow authenticated users to read all users (since we need to list officers)
+-- Policy: Allow anon and authenticated users to read users (needed for officer directory and PIN auth validation)
 DROP POLICY IF EXISTS "Allow authenticated users to read users" ON public.users;
-CREATE POLICY "Allow authenticated users to read users" ON public.users 
-  FOR SELECT TO authenticated USING (true);
+DROP POLICY IF EXISTS "Allow anon and authenticated to read users" ON public.users;
+CREATE POLICY "Allow anon and authenticated to read users" ON public.users 
+  FOR SELECT TO anon, authenticated USING (true);
 
--- Policy: Allow users to update their own profile
+-- Policy: Allow users to update their profile
 DROP POLICY IF EXISTS "Allow users to update own profile" ON public.users;
-CREATE POLICY "Allow users to update own profile" ON public.users 
-  FOR UPDATE TO authenticated USING (auth.uid() = id);
+DROP POLICY IF EXISTS "Allow anon and authenticated to update users" ON public.users;
+CREATE POLICY "Allow anon and authenticated to update users" ON public.users 
+  FOR UPDATE TO anon, authenticated USING (true) WITH CHECK (true);
+
+-- Policy: Allow registration of users
+DROP POLICY IF EXISTS "Allow anon and authenticated to insert users" ON public.users;
+CREATE POLICY "Allow anon and authenticated to insert users" ON public.users 
+  FOR INSERT TO anon, authenticated WITH CHECK (true);
 
 -- Create a trigger to automatically create a public.users row on auth.users insert
 -- Note: This is optional, but helpful if you want new signups to automatically get a profile row.
@@ -126,12 +133,33 @@ CREATE TABLE IF NOT EXISTS public.cases (
 );
 
 ALTER TABLE public.cases ENABLE ROW LEVEL SECURITY;
+
+-- Dual-mode RLS for Cases: Allows resident reporting and municipal workstation consoles (MDRRMO, LGU)
 DROP POLICY IF EXISTS "Allow authenticated users to read cases" ON public.cases;
-CREATE POLICY "Allow authenticated users to read cases" ON public.cases FOR SELECT TO authenticated USING (true);
+DROP POLICY IF EXISTS "Allow anon and authenticated to read cases" ON public.cases;
+CREATE POLICY "Allow anon and authenticated to read cases" ON public.cases 
+  FOR SELECT TO anon, authenticated USING (true);
+
 DROP POLICY IF EXISTS "Allow authenticated users to insert cases" ON public.cases;
-CREATE POLICY "Allow authenticated users to insert cases" ON public.cases FOR INSERT TO authenticated WITH CHECK (true);
+DROP POLICY IF EXISTS "Allow anon and authenticated to insert cases" ON public.cases;
+CREATE POLICY "Allow anon and authenticated to insert cases" ON public.cases 
+  FOR INSERT TO anon, authenticated WITH CHECK (true);
+
 DROP POLICY IF EXISTS "Allow authenticated users to update cases" ON public.cases;
-CREATE POLICY "Allow authenticated users to update cases" ON public.cases FOR UPDATE TO authenticated USING (true);
+DROP POLICY IF EXISTS "Allow anon and authenticated to update cases" ON public.cases;
+CREATE POLICY "Allow anon and authenticated to update cases" ON public.cases 
+  FOR UPDATE TO anon, authenticated USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Allow authenticated users to delete cases" ON public.cases;
+DROP POLICY IF EXISTS "Allow anon and authenticated to delete cases" ON public.cases;
+CREATE POLICY "Allow anon and authenticated to delete cases" ON public.cases 
+  FOR DELETE TO anon, authenticated USING (true);
+
+-- Performance Indexes for Cases
+CREATE INDEX IF NOT EXISTS idx_cases_barangay ON public.cases (barangay);
+CREATE INDEX IF NOT EXISTS idx_cases_status ON public.cases (status);
+CREATE INDEX IF NOT EXISTS idx_cases_date_created ON public.cases ("dateCreated" DESC);
+CREATE INDEX IF NOT EXISTS idx_cases_is_escalated ON public.cases ("isEscalatedToLgu");
 
 
 -- Audit Logs Table
@@ -151,10 +179,16 @@ CREATE TABLE IF NOT EXISTS public.audit_logs (
 );
 
 ALTER TABLE public.audit_logs ENABLE ROW LEVEL SECURITY;
+
 DROP POLICY IF EXISTS "Allow authenticated users to read audit_logs" ON public.audit_logs;
-CREATE POLICY "Allow authenticated users to read audit_logs" ON public.audit_logs FOR SELECT TO authenticated USING (true);
+DROP POLICY IF EXISTS "Allow anon and authenticated to read audit_logs" ON public.audit_logs;
+CREATE POLICY "Allow anon and authenticated to read audit_logs" ON public.audit_logs 
+  FOR SELECT TO anon, authenticated USING (true);
+
 DROP POLICY IF EXISTS "Allow authenticated users to insert audit_logs" ON public.audit_logs;
-CREATE POLICY "Allow authenticated users to insert audit_logs" ON public.audit_logs FOR INSERT TO authenticated WITH CHECK (true);
+DROP POLICY IF EXISTS "Allow anon and authenticated to insert audit_logs" ON public.audit_logs;
+CREATE POLICY "Allow anon and authenticated to insert audit_logs" ON public.audit_logs 
+  FOR INSERT TO anon, authenticated WITH CHECK (true);
 
 
 -- Notifications Table
@@ -182,12 +216,26 @@ CREATE TABLE IF NOT EXISTS public.notifications (
 );
 
 ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
+
 DROP POLICY IF EXISTS "Allow authenticated users to read notifications" ON public.notifications;
-CREATE POLICY "Allow authenticated users to read notifications" ON public.notifications FOR SELECT TO authenticated USING (true);
+DROP POLICY IF EXISTS "Allow anon and authenticated to read notifications" ON public.notifications;
+CREATE POLICY "Allow anon and authenticated to read notifications" ON public.notifications 
+  FOR SELECT TO anon, authenticated USING (true);
+
 DROP POLICY IF EXISTS "Allow authenticated users to insert notifications" ON public.notifications;
-CREATE POLICY "Allow authenticated users to insert notifications" ON public.notifications FOR INSERT TO authenticated WITH CHECK (true);
+DROP POLICY IF EXISTS "Allow anon and authenticated to insert notifications" ON public.notifications;
+CREATE POLICY "Allow anon and authenticated to insert notifications" ON public.notifications 
+  FOR INSERT TO anon, authenticated WITH CHECK (true);
+
 DROP POLICY IF EXISTS "Allow authenticated users to update notifications" ON public.notifications;
-CREATE POLICY "Allow authenticated users to update notifications" ON public.notifications FOR UPDATE TO authenticated USING (true);
+DROP POLICY IF EXISTS "Allow anon and authenticated to update notifications" ON public.notifications;
+CREATE POLICY "Allow anon and authenticated to update notifications" ON public.notifications 
+  FOR UPDATE TO anon, authenticated USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Allow authenticated users to delete notifications" ON public.notifications;
+DROP POLICY IF EXISTS "Allow anon and authenticated to delete notifications" ON public.notifications;
+CREATE POLICY "Allow anon and authenticated to delete notifications" ON public.notifications 
+  FOR DELETE TO anon, authenticated USING (true);
 
 
 -- Storage Bucket for Report Images
@@ -195,11 +243,59 @@ INSERT INTO storage.buckets (id, name, public)
 VALUES ('report-images', 'report-images', true)
 ON CONFLICT (id) DO NOTHING;
 
--- Storage Policies for 'report-images' bucket
+-- Storage Policies for 'report-images' bucket: allow citizens to upload incident photos
 DROP POLICY IF EXISTS "Allow public to read report images" ON storage.objects;
 CREATE POLICY "Allow public to read report images" ON storage.objects 
   FOR SELECT USING (bucket_id = 'report-images');
 
 DROP POLICY IF EXISTS "Allow authenticated to upload report images" ON storage.objects;
-CREATE POLICY "Allow authenticated to upload report images" ON storage.objects 
-  FOR INSERT TO authenticated WITH CHECK (bucket_id = 'report-images');
+DROP POLICY IF EXISTS "Allow anon and authenticated to upload report images" ON storage.objects;
+CREATE POLICY "Allow anon and authenticated to upload report images" ON storage.objects 
+  FOR INSERT TO anon, authenticated WITH CHECK (bucket_id = 'report-images');
+
+DROP POLICY IF EXISTS "Allow anon and authenticated to update report images" ON storage.objects;
+CREATE POLICY "Allow anon and authenticated to update report images" ON storage.objects 
+  FOR UPDATE TO anon, authenticated USING (bucket_id = 'report-images');
+
+
+-- Ensure cases table includes LGU Escalation & Directive Tracking columns
+ALTER TABLE public.cases ADD COLUMN IF NOT EXISTS "isEscalatedToLgu" BOOLEAN DEFAULT false;
+ALTER TABLE public.cases ADD COLUMN IF NOT EXISTS "escalatedAt" TIMESTAMP WITH TIME ZONE;
+ALTER TABLE public.cases ADD COLUMN IF NOT EXISTS "escalationReason" TEXT;
+ALTER TABLE public.cases ADD COLUMN IF NOT EXISTS "escalationSmsDelivered" BOOLEAN DEFAULT false;
+ALTER TABLE public.cases ADD COLUMN IF NOT EXISTS "escalationSmsBody" TEXT;
+ALTER TABLE public.cases ADD COLUMN IF NOT EXISTS "escalationSmsRecipient" TEXT;
+ALTER TABLE public.cases ADD COLUMN IF NOT EXISTS "escalationSmsRecipientPhone" TEXT;
+ALTER TABLE public.cases ADD COLUMN IF NOT EXISTS "escalationElapsedStr" TEXT;
+ALTER TABLE public.cases ADD COLUMN IF NOT EXISTS "lguActionTaken" TEXT;
+ALTER TABLE public.cases ADD COLUMN IF NOT EXISTS "lguInterventionNotes" TEXT;
+ALTER TABLE public.cases ADD COLUMN IF NOT EXISTS "lguActionDate" TIMESTAMP WITH TIME ZONE;
+ALTER TABLE public.cases ADD COLUMN IF NOT EXISTS "lguActionPersonnel" TEXT;
+
+-- Realtime Publication & Replica Identity for Multi-Device Cross-Sync
+ALTER TABLE public.cases REPLICA IDENTITY FULL;
+ALTER TABLE public.notifications REPLICA IDENTITY FULL;
+ALTER TABLE public.audit_logs REPLICA IDENTITY FULL;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_publication_tables 
+    WHERE pubname = 'supabase_realtime' AND schemaname = 'public' AND tablename = 'cases'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.cases;
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_publication_tables 
+    WHERE pubname = 'supabase_realtime' AND schemaname = 'public' AND tablename = 'notifications'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.notifications;
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_publication_tables 
+    WHERE pubname = 'supabase_realtime' AND schemaname = 'public' AND tablename = 'audit_logs'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.audit_logs;
+  END IF;
+END $$;
+

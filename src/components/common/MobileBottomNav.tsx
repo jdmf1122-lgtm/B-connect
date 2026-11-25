@@ -26,6 +26,7 @@ export const MobileBottomNav: React.FC = () => {
 
   const isResident = currentUser?.agencyType === 'RESIDENT' || currentUser?.role === 'RESIDENT';
   const isLgu = currentUser?.agencyType === 'LGU';
+  const isAdmin = currentUser?.agencyType === 'ADMIN';
   const isMdrrmo = currentUser?.agencyType === 'MDRRMO';
 
   if (isResident) {
@@ -99,8 +100,8 @@ export const MobileBottomNav: React.FC = () => {
     );
   }
 
-  // LGU Executive / Municipal Administration View (Dashboard, Transparency, Narrative, Menu)
-  if (isLgu) {
+  // LGU Executive / Municipal Administration / System Admin View (Dashboard, Transparency, Narrative, Menu)
+  if (isLgu || isAdmin) {
     return (
       <nav
         id="bconnect-mobile-bottom-nav"
@@ -185,7 +186,10 @@ export const MobileBottomNav: React.FC = () => {
           id="mobile-nav-drawer-toggle"
           type="button"
           onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-          className={`flex flex-col items-center justify-center flex-1 py-1 transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-focus active:translate-y-px disabled:opacity-50 disabled:cursor-not-allowed ${
+          aria-label={isMobileMenuOpen ? 'Close navigation drawer' : 'Open navigation drawer'}
+          aria-expanded={isMobileMenuOpen}
+          aria-controls="bconnect-sidebar-mobile"
+          className={`flex flex-col items-center justify-center flex-1 py-1 min-h-[44px] transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-focus active:translate-y-px disabled:opacity-50 disabled:cursor-not-allowed ${
             isMobileMenuOpen
               ? 'text-accent font-semibold'
               : 'text-muted hover:text-ink'
@@ -289,7 +293,10 @@ export const MobileBottomNav: React.FC = () => {
         id="mobile-nav-drawer-toggle"
         type="button"
         onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-        className={`flex flex-col items-center justify-center flex-1 py-1 transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-focus active:translate-y-px disabled:opacity-50 disabled:cursor-not-allowed ${
+        aria-label={isMobileMenuOpen ? 'Close navigation drawer' : 'Open navigation drawer'}
+        aria-expanded={isMobileMenuOpen}
+        aria-controls="bconnect-sidebar-mobile"
+        className={`flex flex-col items-center justify-center flex-1 py-1 min-h-[44px] transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-focus active:translate-y-px disabled:opacity-50 disabled:cursor-not-allowed ${
           isMobileMenuOpen
             ? 'text-accent font-semibold'
             : 'text-muted hover:text-ink'

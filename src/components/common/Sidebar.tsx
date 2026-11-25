@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import {
   LayoutDashboard,
   FileSpreadsheet,
@@ -41,6 +41,30 @@ export const Sidebar: React.FC = () => {
   const isLgu = currentUser.agencyType === 'LGU';
   const isAdmin = currentUser.agencyType === 'ADMIN';
   const isResident = currentUser.agencyType === 'RESIDENT' || currentUser.role === 'RESIDENT';
+
+  // Close mobile drawer on Escape key
+  useEffect(() => {
+    if (!isMobileMenuOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setIsMobileMenuOpen(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isMobileMenuOpen, setIsMobileMenuOpen]);
+
+  // Lock body scroll while mobile drawer is open
+  useEffect(() => {
+    if (isMobileMenuOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [isMobileMenuOpen]);
 
   // Role-filtered and tailored Navigation items
   const getNavItems = () => {
@@ -267,9 +291,11 @@ export const Sidebar: React.FC = () => {
         {isMobile && (
           <button
             id="btn-close-mobile-sidebar"
+            type="button"
             onClick={() => setIsMobileMenuOpen(false)}
-            className="p-1.5 rounded-md text-muted hover:text-ink hover:bg-paper-2 transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-focus"
+            className="min-w-[44px] min-h-[44px] p-2.5 rounded-md text-muted hover:text-ink hover:bg-paper-2 transition-colors cursor-pointer flex items-center justify-center focus-visible:ring-2 focus-visible:ring-focus"
             title="Close navigation"
+            aria-label="Close navigation"
           >
             <X className="w-5 h-5" />
           </button>
@@ -330,7 +356,7 @@ export const Sidebar: React.FC = () => {
               key={item.id}
               id={`nav-link-${item.id}${isMobile ? '-mobile' : ''}`}
               onClick={() => handleNavClick(item.id!)}
-              className={`w-full min-h-[36px] text-left px-2.5 py-1.5 rounded-md transition-colors flex items-center justify-between group cursor-pointer focus-visible:ring-2 focus-visible:ring-focus active:translate-y-px disabled:opacity-50 disabled:cursor-not-allowed ${
+              className={`w-full min-h-[44px] sm:min-h-[36px] text-left px-2.5 py-1.5 rounded-md transition-colors flex items-center justify-between group cursor-pointer focus-visible:ring-2 focus-visible:ring-focus active:translate-y-px disabled:opacity-50 disabled:cursor-not-allowed ${
                 isActive
                   ? 'bg-paper-3 text-ink font-semibold border border-rule'
                   : 'text-ink-2 hover:bg-paper-2 hover:text-ink border border-transparent'
@@ -429,12 +455,16 @@ export const Sidebar: React.FC = () => {
           id="mobile-sidebar-backdrop"
           onClick={() => setIsMobileMenuOpen(false)}
           className="fixed inset-0 bg-black/40 z-50 lg:hidden motion-safe:transition-opacity motion-reduce:transition-none duration-300"
+          aria-hidden="true"
         />
       )}
 
       {/* Mobile & Tablet Slide-Over Drawer (< 1024px) */}
       <aside
         id="bconnect-sidebar-mobile"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Mobile Navigation Drawer"
         className={`fixed inset-y-0 left-0 z-50 w-72 max-w-[85vw] bg-paper text-ink flex flex-col shadow-card border-r border-rule select-none transform motion-safe:transition-transform motion-reduce:transition-none duration-300 ease-in-out lg:hidden ${
           isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
         }`}

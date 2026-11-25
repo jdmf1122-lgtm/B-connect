@@ -84,12 +84,6 @@ export const AuthPage: React.FC = () => {
   const [googleBarangay, setGoogleBarangay] = useState<string>(ROXAS_BARANGAYS[0]);
   const [googleError, setGoogleError] = useState<string | null>(null);
   const [isGoogleSubmitting, setIsGoogleSubmitting] = useState(false);
-  const [googleClientIdInput, setGoogleClientIdInput] = useState<string>(() => {
-    return (
-      (import.meta as any).env?.VITE_GOOGLE_CLIENT_ID ||
-      (typeof window !== 'undefined' ? localStorage.getItem('bconnect_google_client_id') || '' : '')
-    );
-  });
 
   // Ambient lighting / theme toggle
   const { isDark, toggleTheme } = useUI();
@@ -202,138 +196,44 @@ export const AuthPage: React.FC = () => {
     }
   };
 
-  const launchRealGoogleGsiPopup = (clientId: string, selectedBrgy: string): boolean => {
-    const gsi = (window as any).google?.accounts?.oauth2;
-    if (!gsi || !clientId.trim()) return false;
-
-    try {
-      const tokenClient = gsi.initTokenClient({
-        client_id: clientId.trim(),
-        scope: 'openid email profile',
-        prompt: 'select_account',
-        callback: async (tokenResponse: any) => {
-          if (tokenResponse?.error) {
-            setGoogleError(`Google OAuth error: ${tokenResponse.error_description || tokenResponse.error}`);
-            return;
-          }
-          if (!tokenResponse?.access_token) return;
-
-          setIsGoogleSubmitting(true);
-          try {
-            // Fetch real verified Google profile from Google OAuth2 userinfo endpoint
-            const userInfoRes = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
-              headers: { Authorization: `Bearer ${tokenResponse.access_token}` }
-            });
-            if (!userInfoRes.ok) {
-              throw new Error('Failed to fetch verified user profile from Google.');
-            }
-            const googleProfile = await userInfoRes.json();
-            const verifiedEmail = (googleProfile.email || '').trim().toLowerCase();
-            if (!verifiedEmail) {
-              throw new Error('Google account did not return a valid email address.');
-            }
-
-            // 1. Check if this Google user already exists in the system
-            const existingUser = (users || []).find(
-              (u) => (u.email || '').toLowerCase() === verifiedEmail
-            );
-            if (existingUser) {
-              login({
-                ...existingUser,
-                avatarUrl: googleProfile.picture || existingUser.avatarUrl
-              });
-              setShowGoogleModal(false);
-              return;
-            }
-
-            // 2. Otherwise register a new Resident Citizen account with real Google profile data
-            const brgy = selectedBrgy || ROXAS_BARANGAYS[0];
-            const verifiedName =
-              googleProfile.name ||
-              [googleProfile.given_name, googleProfile.family_name].filter(Boolean).join(' ') ||
-              verifiedEmail.split('@')[0];
-
-            const newGoogleUser = await registerUser({
-              name: verifiedName,
-              role: 'RESIDENT',
-              agencyType: 'RESIDENT',
-              agencyName: `Barangay ${brgy} Resident Citizen`,
-              barangay: brgy,
-              position: 'Verified Resident Citizen',
-              badgeOrIdNumber: `RES-${brgy.slice(0, 3).toUpperCase()}-${Math.floor(1000 + Math.random() * 9000)}`,
-              email: verifiedEmail,
-              passcode: `GAuth-${googleProfile.sub || Date.now()}`,
-              avatarUrl: googleProfile.picture || '/bconnect_logo_transparent.png'
-            });
-
-            login(newGoogleUser);
-            setShowGoogleModal(false);
-          } catch (err: any) {
-            setGoogleError(err.message || 'Real Google OAuth verification failed.');
-          } finally {
-            setIsGoogleSubmitting(false);
-          }
-        }
-      });
-
-      tokenClient.requestAccessToken();
-      return true;
-    } catch (e: any) {
-      console.warn('Google Identity Services popup notice:', e);
-      return false;
-    }
-  };
-
+  // shortcut: Native Supabase OAuth prioritized; streamlined modal fallback for offline/demo dev environments
   const handleOpenGoogleAuth = async () => {
     setGoogleError(null);
-    const activeBrgy = regBarangay || ROXAS_BARANGAYS[0];
+    const activeBrgy = (authMode === 'register' ? regBarangay : '') || ROXAS_BARANGAYS[0];
     setGoogleBarangay(activeBrgy);
     try {
       localStorage.setItem('bconnect_pending_google_barangay', activeBrgy);
     } catch {}
 
-    // 1. If a Google OAuth 2.0 Client ID is configured, launch the REAL Google OAuth Popup (accounts.google.com) directly
-    const activeClientId =
-      (import.meta as any).env?.VITE_GOOGLE_CLIENT_ID ||
-      localStorage.getItem('bconnect_google_client_id') ||
-      googleClientIdInput;
-
-    if (activeClientId && activeClientId.trim().includes('.apps.googleusercontent.com')) {
-      const launched = launchRealGoogleGsiPopup(activeClientId.trim(), activeBrgy);
-      if (launched) return;
-    }
-
-    // 2. Check if Supabase project has external Google OAuth provider enabled
+    setIsGoogleSubmitting(true);
     try {
-      const supabaseUrl = (import.meta as any).env?.VITE_SUPABASE_URL;
-      const supabaseAnonKey = (import.meta as any).env?.VITE_SUPABASE_ANON_KEY;
-      if (supabaseUrl && supabaseAnonKey && !supabaseUrl.includes('placeholder')) {
-        const res = await fetch(`${supabaseUrl}/auth/v1/settings`, {
-          headers: { apikey: supabaseAnonKey }
-        });
-        if (res.ok) {
-          const settings = await res.json();
-          if (settings?.external?.google === true) {
-            const { error } = await supabase.auth.signInWithOAuth({
-              provider: 'google',
-              options: {
-                redirectTo: window.location.origin,
-                queryParams: {
-                  access_type: 'offline',
-                  prompt: 'select_account'
-                }
-              }
-            });
-            if (!error) return;
+      // 1. Prioritize native Supabase OAuth redirect flow
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: window.location.origin,
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'select_account'
           }
         }
-      }
-    } catch {}
+      });
 
-    // 3. Otherwise open the Google Auth modal (where user can connect a real Google Client ID or enter their Gmail directly)
-    setGoogleEmail('');
-    setGoogleName('');
-    setShowGoogleModal(true);
+      if (error) {
+        // Fall back to streamlined modal for demo / unconfigured / offline environments
+        console.warn('Native Supabase Google OAuth notice:', error.message);
+        setGoogleEmail('');
+        setGoogleName('');
+        setShowGoogleModal(true);
+      }
+    } catch (err: any) {
+      console.warn('Supabase OAuth error, falling back to Google modal:', err);
+      setGoogleEmail('');
+      setGoogleName('');
+      setShowGoogleModal(true);
+    } finally {
+      setIsGoogleSubmitting(false);
+    }
   };
 
   const handleGoogleCustomSubmit = async (e: React.FormEvent) => {
@@ -941,125 +841,88 @@ export const AuthPage: React.FC = () => {
           Google Account Sign-In / Sign-Up Chooser Modal
           ========================================================================= */}
       {showGoogleModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-[1px] p-4">
-          <div className="bg-paper rounded-2xl p-6 max-w-md w-full border border-rule shadow-card relative space-y-4 animate-in fade-in duration-150">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="google-auth-dialog-title"
+        >
+          <div className="bg-paper-2 rounded-card p-6 max-w-md w-full border border-rule shadow-card relative space-y-4">
             <button
               type="button"
               onClick={() => setShowGoogleModal(false)}
               aria-label="Close Google Sign-In"
-              className="absolute top-4 right-4 text-muted hover:text-ink cursor-pointer p-1 rounded-md hover:bg-paper-2"
+              className="absolute top-4 right-4 text-muted hover:text-ink cursor-pointer p-1 rounded-sm focus-visible:outline-2 focus-visible:outline-focus"
             >
               <X className="w-5 h-5" aria-hidden="true" />
             </button>
 
             {/* Google Header */}
             <div className="text-center space-y-1.5 pt-1">
-              <div className="w-11 h-11 rounded-full bg-paper-2 border border-rule flex items-center justify-center mx-auto shadow-2xs">
+              <div className="w-11 h-11 rounded-full bg-paper border border-rule flex items-center justify-center mx-auto shadow-2xs">
                 <GoogleLogoIcon className="w-6 h-6" />
               </div>
-              <h3 className="text-base font-bold text-ink">
+              <h3 id="google-auth-dialog-title" className="text-base font-bold text-ink">
                 {authMode === 'login' ? 'Sign in with Google' : 'Sign up with Google'}
               </h3>
               <p className="text-xs text-muted">
-                to continue to <strong className="text-ink">B-CONNECT Roxas Resident Portal</strong>
+                Continue to <strong className="text-ink">B-CONNECT Roxas Resident Portal</strong>
               </p>
             </div>
 
             {googleError && (
-              <div className="p-2.5 bg-paper-3 border border-error/40 text-error rounded-lg text-xs flex items-center gap-2">
-                <AlertCircle className="w-4 h-4 flex-shrink-0 text-error" />
+              <div className="p-3 bg-paper-3 border border-error/40 text-error rounded-md text-xs flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 flex-shrink-0 text-error" aria-hidden="true" />
                 <span>{googleError}</span>
               </div>
             )}
 
-            {/* Direct Real Google OAuth 2.0 Popup (accounts.google.com) Configuration */}
-            <div className="p-3 bg-paper-2 border border-rule rounded-xl space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-[11px] font-bold text-ink flex items-center gap-1.5">
-                  <GoogleLogoIcon className="w-3.5 h-3.5" />
-                  <span>Real Google OAuth 2.0 Popup (accounts.google.com)</span>
-                </span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <input
-                  type="text"
-                  placeholder="Paste Google OAuth Client ID (...apps.googleusercontent.com)"
-                  value={googleClientIdInput}
-                  onChange={(e) => {
-                    setGoogleClientIdInput(e.target.value);
-                    try {
-                      localStorage.setItem('bconnect_google_client_id', e.target.value.trim());
-                    } catch {}
-                  }}
-                  className="flex-1 px-2.5 py-1.5 text-[11px] bg-paper text-ink border border-rule rounded-md focus:border-focus focus:outline-none"
-                />
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (!googleClientIdInput.trim()) {
-                      setGoogleError(
-                        'Enter your Google OAuth 2.0 Client ID (...apps.googleusercontent.com) or enable Google Provider in your Supabase Dashboard > Authentication > Providers.'
-                      );
-                      return;
-                    }
-                    try {
-                      localStorage.setItem('bconnect_google_client_id', googleClientIdInput.trim());
-                    } catch {}
-                    const ok = launchRealGoogleGsiPopup(googleClientIdInput.trim(), googleBarangay);
-                    if (!ok) {
-                      setGoogleError('Google Identity Services script is still loading. Please try again.');
-                    }
-                  }}
-                  className="px-3 py-1.5 bg-accent text-accent-ink rounded-md text-[11px] font-bold cursor-pointer hover:opacity-95 whitespace-nowrap"
-                >
-                  Open Google Popup
-                </button>
-              </div>
-            </div>
-
             <form onSubmit={handleGoogleCustomSubmit} className="space-y-3.5">
               <div className="space-y-1">
-                <label className="block text-xs font-semibold text-ink-2">
+                <label htmlFor="input-google-email" className="block text-xs font-semibold text-ink-2">
                   Google Email Address (Gmail) <span className="text-error">*</span>
                 </label>
                 <div className="relative">
-                  <Mail className="w-4 h-4 text-muted absolute left-3 top-2.5" />
+                  <Mail className="w-4 h-4 text-muted absolute left-3 top-2.5" aria-hidden="true" />
                   <input
+                    id="input-google-email"
                     type="email"
                     required
                     autoFocus
-                    placeholder="yourname@gmail.com"
+                    placeholder="resident@gmail.com"
                     value={googleEmail}
                     onChange={(e) => setGoogleEmail(e.target.value)}
-                    className="w-full pl-9 pr-3 py-2 text-xs sm:text-sm bg-paper-2 text-ink border border-rule rounded-lg focus:bg-paper focus:border-focus focus:outline-none"
+                    className="w-full pl-9 pr-3 py-2 text-xs sm:text-sm bg-paper text-ink border border-rule rounded-md focus:border-focus focus:outline-none focus-visible:outline-2 focus-visible:outline-focus"
                   />
                 </div>
               </div>
 
               <div className="space-y-1">
-                <label className="block text-xs font-semibold text-ink-2">
-                  Full Name (for new Google Resident account)
+                <label htmlFor="input-google-name" className="block text-xs font-semibold text-ink-2">
+                  Official Full Name
                 </label>
                 <div className="relative">
-                  <User className="w-4 h-4 text-muted absolute left-3 top-2.5" />
+                  <User className="w-4 h-4 text-muted absolute left-3 top-2.5" aria-hidden="true" />
                   <input
+                    id="input-google-name"
                     type="text"
-                    placeholder="e.g. Juan Dela Cruz"
+                    placeholder="e.g. Juan dela Cruz"
                     value={googleName}
                     onChange={(e) => setGoogleName(e.target.value)}
-                    className="w-full pl-9 pr-3 py-2 text-xs sm:text-sm bg-paper-2 text-ink border border-rule rounded-lg focus:bg-paper focus:border-focus focus:outline-none"
+                    className="w-full pl-9 pr-3 py-2 text-xs sm:text-sm bg-paper text-ink border border-rule rounded-md focus:border-focus focus:outline-none focus-visible:outline-2 focus-visible:outline-focus"
                   />
                 </div>
               </div>
 
               <div className="space-y-1">
-                <label className="block text-xs font-semibold text-ink-2">
+                <label htmlFor="select-google-barangay" className="block text-xs font-semibold text-ink-2">
                   Home Barangay in Roxas
                 </label>
                 <select
+                  id="select-google-barangay"
                   value={googleBarangay}
                   onChange={(e) => setGoogleBarangay(e.target.value)}
-                  className="w-full px-3 py-2 text-xs sm:text-sm bg-paper-2 text-ink border border-rule rounded-lg focus:bg-paper focus:border-focus focus:outline-none"
+                  className="w-full px-3 py-2 text-xs sm:text-sm bg-paper text-ink border border-rule rounded-md focus:border-focus focus:outline-none focus-visible:outline-2 focus-visible:outline-focus"
                 >
                   {ROXAS_BARANGAYS.map((b) => (
                     <option key={b} value={b}>
@@ -1069,13 +932,13 @@ export const AuthPage: React.FC = () => {
                 </select>
               </div>
 
-              <div className="flex items-center gap-2 pt-1">
+              <div className="pt-1">
                 <button
                   type="submit"
                   disabled={isGoogleSubmitting}
-                  className="flex-1 py-2.5 px-4 rounded-lg bg-accent text-accent-ink font-semibold text-xs sm:text-sm hover:opacity-95 transition-opacity cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50"
+                  className="w-full py-2.5 px-4 rounded-md bg-accent text-accent-ink font-semibold text-xs sm:text-sm hover:opacity-95 active:scale-[0.99] transition-opacity cursor-pointer flex items-center justify-center gap-2 focus-visible:outline-2 focus-visible:outline-focus disabled:opacity-50"
                 >
-                  <GoogleLogoIcon className="w-4 h-4 bg-white rounded-full p-0.5" />
+                  <GoogleLogoIcon className="w-4 h-4" />
                   <span>
                     {isGoogleSubmitting
                       ? 'Connecting Google Account...'
@@ -1087,8 +950,8 @@ export const AuthPage: React.FC = () => {
               </div>
             </form>
 
-            <p className="text-[11px] text-center text-muted pt-1 border-t border-rule">
-              Google authentication securely links your Gmail address to your verified B-CONNECT Resident profile.
+            <p className="text-xs text-center text-muted pt-2 border-t border-rule">
+              Google authentication securely links your Google profile to your Roxas Resident Citizen account.
             </p>
           </div>
         </div>

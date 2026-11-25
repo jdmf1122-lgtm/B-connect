@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="theme-color" content="#047857" />
+    <title>Privacy Policy | B-CONNECT</title>
+    <link rel="icon" type="image/png" href="/bconnect_logo_transparent.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --paper: #f7faf8;
+        --card: #ffffff;
+        --ink: #111c16;
+        --muted: #4b5e54;
+        --rule: #dce5df;
+        --accent: #047857;
+        --accent-soft: #ecfdf5;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --paper: #0c1410;
+          --card: #121e18;
+          --ink: #edf4f0;
+          --muted: #9eb3a7;
+          --rule: #22352c;
+          --accent: #34d399;
+          --accent-soft: rgba(16, 185, 129, 0.12);
+        }
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+        background: var(--paper);
+        color: var(--ink);
+        line-height: 1.65;
+        -webkit-font-smoothing: antialiased;
+      }
+      .wrap {
+        max-width: 760px;
+        margin: 0 auto;
+        padding: 40px 20px 64px;
+      }
+      header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        margin-bottom: 28px;
+      }
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        text-decoration: none;
+        color: inherit;
+      }
+      .brand img {
+        width: 40px;
+        height: 40px;
+        object-fit: contain;
+      }
+      .brand-title {
+        font-weight: 800;
+        font-size: 1.05rem;
+        letter-spacing: -0.01em;
+      }
+      .brand-sub {
+        font-size: 0.78rem;
+        color: var(--muted);
+      }
+      .nav-links {
+        display: flex;
+        gap: 14px;
+        font-size: 0.875rem;
+        font-weight: 600;
+      }
+      .nav-links a {
+        color: var(--accent);
+        text-decoration: none;
+      }
+      .nav-links a:hover {
+        text-decoration: underline;
+      }
+      main {
+        background: var(--card);
+        border: 1px solid var(--rule);
+        border-radius: 14px;
+        padding: 32px 28px;
+      }
+      .badge {
+        display: inline-block;
+        padding: 4px 10px;
+        border-radius: 999px;
+        background: var(--accent-soft);
+        color: var(--accent);
+        font-size: 0.75rem;
+        font-weight: 700;
+        margin-bottom: 10px;
+      }
+      h1 {
+        margin: 0 0 6px;
+        font-size: 1.75rem;
+        line-height: 1.2;
+        letter-spacing: -0.02em;
+      }
+      .updated {
+        margin: 0 0 24px;
+        font-size: 0.85rem;
+        color: var(--muted);
+      }
+      h2 {
+        margin: 24px 0 8px;
+        font-size: 1.05rem;
+      }
+      p,
+      li {
+        color: var(--muted);
+        font-size: 0.95rem;
+      }
+      ul {
+        margin: 8px 0 0;
+        padding-left: 20px;
+      }
+      li + li {
+        margin-top: 6px;
+      }
+      footer {
+        margin-top: 24px;
+        font-size: 0.82rem;
+        color: var(--muted);
+        text-align: center;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <header>
+        <a class="brand" href="/">
+          <img src="/bconnect_logo_transparent.png" alt="B-CONNECT Logo" />
+          <div>
+            <div class="brand-title">B-CONNECT</div>
+            <div class="brand-sub">Municipality of Roxas, Oriental Mindoro</div>
+          </div>
+        </a>
+        <nav class="nav-links" aria-label="Legal navigation">
+          <a href="/">Portal Home</a>
+          <a href="/terms.html">Terms of Service</a>
+        </nav>
+      </header>
+
+      <main>
+        <span class="badge">RA 10173 Compliant</span>
+        <h1>Privacy Policy</h1>
+        <p class="updated">Effective Date: November 25, 2026</p>
+
+        <p>
+          B-CONNECT (Barangay &amp; Municipal Multi-Agency Incident Reporting and Case Tracking Portal for
+          the Municipality of Roxas, Oriental Mindoro) strictly complies with
+          <strong>Republic Act No. 10173 (Data Privacy Act of 2012)</strong> and
+          <strong>Republic Act No. 7160 (Local Government Code)</strong>.
+        </p>
+
+        <h2>1. Information We Collect</h2>
+        <ul>
+          <li>
+            <strong>Google Sign-In Account Data:</strong> When you choose to sign in with Google via
+            Supabase Authentication, we receive only your basic profile information—specifically your
+            name, email address, and profile avatar URL—used solely to authenticate and provision your
+            B-CONNECT resident account.
+          </li>
+          <li>
+            <strong>Resident &amp; Incident Report Data:</strong> Your selected barangay, submitted
+            incident descriptions, locations, and any supporting photos or attachments you voluntarily
+            provide.
+          </li>
+        </ul>
+
+        <h2>2. How We Use Your Information</h2>
+        <ul>
+          <li>To verify your identity and maintain your citizen portal session.</li>
+          <li>
+            To route, track, and coordinate barangay, MDRRMO, and LGU emergency or civic responses.
+          </li>
+          <li>
+            To enforce barangay-level role isolation so confidential blotter entries and witness
+            identities are accessible only to authorized responders handling your case.
+          </li>
+        </ul>
+
+        <h2>3. Data Isolation &amp; Sharing</h2>
+        <p>
+          Your personal profile and submitted reports are isolated to your account and accessible only
+          to authorized Barangay, MDRRMO, and LGU Roxas personnel assigned to handle your case.
+          B-CONNECT does not sell, rent, or disclose your personal data to third-party advertisers or
+          unrelated external entities.
+        </p>
+
+        <h2>4. Data Retention &amp; Your Rights</h2>
+        <p>
+          Under RA 10173, you have the right to be informed, access, correct, or request removal of
+          your personal account information where permitted by municipal record-keeping regulations.
+        </p>
+
+        <h2>5. Contact</h2>
+        <p>
+          For privacy questions or data requests, please coordinate with the Municipality of Roxas LGU
+          or MDRRMO office through the B-CONNECT portal.
+        </p>
+      </main>
+
+      <footer>
+        &copy; 2026 B-CONNECT &mdash; Municipality of Roxas, Oriental Mindoro
+      </footer>
+    </div>
+  </body>
+</html>
