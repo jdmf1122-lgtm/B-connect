@@ -159,7 +159,6 @@ CREATE POLICY "Allow anon and authenticated to delete cases" ON public.cases
 CREATE INDEX IF NOT EXISTS idx_cases_barangay ON public.cases (barangay);
 CREATE INDEX IF NOT EXISTS idx_cases_status ON public.cases (status);
 CREATE INDEX IF NOT EXISTS idx_cases_date_created ON public.cases ("dateCreated" DESC);
-CREATE INDEX IF NOT EXISTS idx_cases_is_escalated ON public.cases ("isEscalatedToLgu");
 
 
 -- Audit Logs Table
@@ -271,6 +270,7 @@ ALTER TABLE public.cases ADD COLUMN IF NOT EXISTS "lguActionTaken" TEXT;
 ALTER TABLE public.cases ADD COLUMN IF NOT EXISTS "lguInterventionNotes" TEXT;
 ALTER TABLE public.cases ADD COLUMN IF NOT EXISTS "lguActionDate" TIMESTAMP WITH TIME ZONE;
 ALTER TABLE public.cases ADD COLUMN IF NOT EXISTS "lguActionPersonnel" TEXT;
+CREATE INDEX IF NOT EXISTS idx_cases_is_escalated ON public.cases ("isEscalatedToLgu");
 
 -- Realtime Publication & Replica Identity for Multi-Device Cross-Sync
 ALTER TABLE public.cases REPLICA IDENTITY FULL;

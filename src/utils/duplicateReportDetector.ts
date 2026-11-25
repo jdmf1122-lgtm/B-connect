@@ -416,9 +416,9 @@ export function evaluateDuplicateReports(
     reasons.push(`Compatible Vehicular Incident categories`);
   }
 
-  // 6. Text & Semantic Content Similarity (Title + Narrative + Location)
-  const textContentA = `${reportA.title || ''} ${reportA.initialNarrative || ''} ${reportA.description || ''} ${reportA.specificLocation || ''}`;
-  const textContentB = `${reportB.title || ''} ${reportB.initialNarrative || ''} ${reportB.description || ''} ${reportB.specificLocation || ''}`;
+  // 6. Text & Semantic Content Similarity (Title + Narrative + Sitio, excluding generic municipal boilerplate)
+  const textContentA = `${reportA.title || ''} ${reportA.initialNarrative || ''} ${reportA.description || ''} ${reportA.sitio || ''}`;
+  const textContentB = `${reportB.title || ''} ${reportB.initialNarrative || ''} ${reportB.description || ''} ${reportB.sitio || ''}`;
 
   const tokensA = extractNormalizedTokens(textContentA);
   const tokensB = extractNormalizedTokens(textContentB);
@@ -458,17 +458,14 @@ export function evaluateDuplicateReports(
 
   const finalScore = Math.min(1.0, Math.max(0.0, baseScore));
 
-  // Duplication determination:
-  // High similarity (finalScore >= 0.55 with same barangay & date)
-  // Or high token similarity (tokenSim >= 0.45)
-  // Or title fuzzy match >= 0.65
-  // Or same reporter with moderate match
+  // Require real text/landmark overlap so unrelated reports from the same reporter/day aren't swallowed
+  const hasContentOrLocationOverlap = tokenSim >= 0.25 || titleDice >= 0.45 || hasSubphrase || sitioMatch;
   const isDuplicate =
-    (finalScore >= 0.52 && (categoryMatch || sitioMatch || tokenSim >= 0.35)) ||
+    (finalScore >= 0.52 && (categoryMatch || sitioMatch || tokenSim >= 0.35) && hasContentOrLocationOverlap) ||
     (tokenSim >= 0.50) ||
     (titleDice >= 0.65) ||
     (hasSubphrase && (categoryMatch || sitioMatch)) ||
-    (sameReporter && finalScore >= 0.40);
+    (sameReporter && finalScore >= 0.50 && hasContentOrLocationOverlap);
 
   if (isDuplicate) {
     reasons.push(`High Semantic Overlap: ${Math.round(finalScore * 100)}% similarity`);

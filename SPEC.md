@@ -2,9 +2,9 @@
 
 **Target System:** B-CONNECT — Municipal Incident Reporting, Dispatch & Governance System  
 **Jurisdiction:** Municipality of Roxas, Oriental Mindoro, Philippines  
-**Phase:** Phase 2 (WP-09 through WP-13)  
-**Previous Phase Status:** COMPLETED (WP-01 through WP-08 Hallmark Redesign: 100% complete, 0 sloplint errors, clean production build)  
-**System Contracts:** [AGENT.md](AGENT.md) · [DESIGN.md](DESIGN.md) · [supabase_schema.sql](supabase_schema.sql)
+**Phase:** Phase 3 (WP-14 — Fork Reconciliation, Reporting Persistence & Dedup Safety)  
+**Previous Phase Status:** Phase 1 (WP-01–WP-08) & Phase 2 (WP-09–WP-13) COMPLETED  
+**System Contracts:** [AGENT.md](AGENT.md) · [DESIGN.md](DESIGN.md) · [supabase_schema.sql](supabase_schema.sql) · [supabase_rls_and_columns_fix.sql](supabase_rls_and_columns_fix.sql)
 
 ---
 
@@ -94,6 +94,28 @@ Following the integration of upstream fork changes (serverless `/api` routes, Go
   3. Ensure user profile auto-provisioning in [AuthContext.tsx](src/context/AuthContext.tsx) cleanly assigns new Google users to their chosen Roxas barangay.
 - **Success Criteria**:
   - Google Sign-In flow is unified, predictable, and fully integrated with Supabase Auth.
+
+---
+
+### WP-14: Fork Reconciliation, Reporting Persistence & Deduplication Safety (Phase 3)
+- **Context & Trigger**: `jdmf1122-lgtm/barangay` (`fork/main`) is actively receiving commits ahead of `origin/main` (`404235a` PR #6 merge, `683db38` submission modal + `.gitignore`, `c2ad547` Tagalog/Taglish dedup synonyms + polling auto-delete). Execute merge/conflict resolution once `fork/main` stops changing and `lgtm` applies the SQL fix to `chyayvzwsqihedopjqqh`.
+- **Primary Files**:
+  - `supabase_rls_and_columns_fix.sql` & `supabase_schema.sql`
+  - `src/context/CaseContext.tsx`
+  - `src/hooks/useCases.ts`
+  - `src/utils/duplicateReportDetector.ts`
+  - `src/components/resident/ResidentPortalView.tsx`
+  - `.gitignore`
+- **Objectives**:
+  1. **Database Alignment (`chyayvzwsqihedopjqqh`)**: Apply [supabase_rls_and_columns_fix.sql](supabase_rls_and_columns_fix.sql) so `anon` + `authenticated` have grants/RLS on `users`, `cases`, `audit_logs`, `notifications`, and `storage.objects`, and `public.cases` has all 12 LGU escalation columns before `idx_cases_is_escalated`.
+  2. **Fetch Fallback & Sequential Insert**: Keep `CaseContext.tsx` fallback to `supabase.from('cases')` when `/api/cases` returns `[]`, and keep `useCases.ts` sequential insert (`supabase` → `23505` retry → `/api/cases` fallback) with server-reassigned ID reconciliation.
+  3. **Merge `fork/main` (`683db38`, `c2ad547`, + newer) Safely**:
+     - Keep `ResidentPortalView.tsx` `showReportSubmittedModal` popup (`683db38`).
+     - Keep `duplicateReportDetector.ts` expanded Tagalog/Taglish `SYNONYMS` + `normalizeWordRoot` (`c2ad547`), **AND preserve** our boilerplate exclusion (`sitio` instead of `"Barangay …, Roxas, Oriental Mindoro"`) + `hasContentOrLocationOverlap` guard (`tokenSim >= 0.25 || titleDice >= 0.45 || hasSubphrase || sitioMatch`) so same-reporter/same-day reports aren't falsely consolidated.
+     - **Remove/block** `c2ad547`'s destructive `deduplicateCaseList` auto-`DELETE` loop inside `CaseContext.tsx` `fetchData` (never delete DB rows on a 4s client poll).
+     - Decide explicitly on `.gitignore` (`683db38` removed `.agents/`, `.claude/`, `skills-lock.json` — keep ignored on `main` unless intentionally tracked).
+- **Success Criteria**:
+  - Clean merge with `fork/main`, `npm run lint` + `npm run build` pass, and newly submitted reports persist to DB and appear immediately in both Resident *My Reports* and MDRRMO/LGU consoles without false consolidation or polling deletion.
 
 ---
 

@@ -1,38 +1,30 @@
-# B-CONNECT — Progress Ledger: Phase 2 Database Persistence, RLS Hardening & Auth
+# B-CONNECT — Progress Ledger: Phase 3 Fork Reconciliation & Reporting Visibility
 
-Tracking implementation of Phase 2 improvements (WP-09 through WP-13) based on [SPEC.md](SPEC.md) and governed by [AGENT.md](AGENT.md).
-
----
-
-## Archival Summary: Phase 1 (WP-01 to WP-08) — 100% Complete
-- **WP-01 (Design Foundation & Public Gateway)**: COMPLETED.
-- **WP-02 (Application Shell, Chrome & Modals)**: COMPLETED.
-- **WP-03 (Resident Citizen Portal)**: COMPLETED.
-- **WP-04 (MDRRMO Emergency Hub & Case Queue)**: COMPLETED.
-- **WP-05 (Incident Graph Network & GIS Map)**: COMPLETED.
-- **WP-06 (LGU Executive Oversight & Escalation)**: COMPLETED.
-- **WP-07 (Governance Reports & Administration)**: COMPLETED.
-- **WP-08 (Full Platform Sweep & Hardening)**: COMPLETED (34/34 files clean under Hallmark sloplint audit, 0 FAILs, 0 WARNs).
+Tracking Phase 3 (WP-14) on top of completed Phase 1 (WP-01–WP-08) and Phase 2 (WP-09–WP-13), governed by [SPEC.md](SPEC.md) and [AGENT.md](AGENT.md).
 
 ---
 
-## Phase 2 Baseline Platform Health
-
-- **Production Build (`npm run build`)**: Passing cleanly (`dist/` verified).
-- **TypeScript Compiler (`tsc --noEmit`)**: Passing cleanly (**0 errors across entire repository**).
-- **Active Focus**: Database mutation proxying, RLS policy hardening, mobile navigation recovery, and auth streamlining.
+## Archival Summary: Phase 1 & Phase 2 — 100% Complete
+- **WP-01 to WP-08 (Hallmark Redesign & Hardening)**: COMPLETED (34/34 files clean under Hallmark sloplint audit, 0 FAILs, 0 WARNs).
+- **WP-09 to WP-13 (Mutation Proxying, RLS Hardening, API Resilience, Mobile Nav, Google OAuth)**: COMPLETED.
 
 ---
 
-## Phase 2 Work Package Roadmap
+## Phase 3 Baseline & Active Blockers
+
+- **Production Build (`npm run build`)**: Passing cleanly on `main` (`dist/` verified).
+- **TypeScript Compiler (`tsc --noEmit`)**: Passing cleanly on `main` (**0 errors**).
+- **Active Focus (WP-14)**:
+  1. **Fork Merge & Reconciliation Complete**: Merged `fork/main` (`404235a`..`c2ad547`) into `main`, removed `c2ad547` polling `DELETE` loop in `CaseContext.tsx`, merged Tagalog/Taglish `SYNONYMS` + `normalizeWordRoot` with `hasContentOrLocationOverlap` guard in `duplicateReportDetector.ts`, adapted `ResidentPortalView.tsx` submission modal to `tokens.css`, and restored `.gitignore` ignores.
+  2. **Production Alignment Verified**: User applied [supabase_rls_and_columns_fix.sql](supabase_rls_and_columns_fix.sql) on `chyayvzwsqihedopjqqh`; live probe of `https://b-connect-roxas.vercel.app/` verified `chyayvzwsqihedopjqqh.supabase.co` in bundle and `200` responses from `/api/cases` (15 cases) and `/api/users` (17 users).
+
+---
+
+## Phase 3 Work Package Roadmap
 
 | Priority | ID | Work Package | Status | Target Deliverables | Verification Target |
 | :---: | :---: | :--- | :---: | :--- | :--- |
-| **1** | **WP-09** | **End-to-End Case Mutation Proxying**<br>- Add PATCH/PUT support to `/api/cases` in `server.ts` & `api/cases.ts`.<br>- Route all case updates in `useCases.ts` through backend proxy.<br>- Ensure status updates & assignments persist under RLS. | **COMPLETED** | `server.ts`<br>`api/cases.ts`<br>`src/hooks/useCases.ts` | Case status update persists on refresh without Supabase JWT |
-| **2** | **WP-10** | **Database RLS Hardening & Case Visibility**<br>- Update `supabase_schema.sql` with permissive dual-mode RLS.<br>- Resilient merging in `CaseContext.tsx`.<br>- Verify multi-device case synchronization for MDRRMO/LGU. | **COMPLETED** | `supabase_schema.sql`<br>`src/context/CaseContext.tsx`<br>`src/hooks/useCases.ts` | All cases appear on MDRRMO/LGU across fresh browser sessions |
-| **3** | **WP-11** | **Serverless & Backend API Key Resilience**<br>- Add safety guards in `api/auth/login.ts` & `api/users.ts`.<br>- Prevent crashes when `SUPABASE_SERVICE_ROLE_KEY` is omitted.<br>- Ensure graceful error handling instead of 500 exceptions. | **COMPLETED** | `api/auth/login.ts`<br>`api/auth/register.ts`<br>`api/users.ts`<br>`api/cases.ts`<br>`server.ts` | Graceful response on missing service role key |
-| **4** | **WP-12** | **Mobile Navigation Shell Restoration**<br>- Restore hamburger button in `Header.tsx` for agency roles.<br>- Maintain clean mobile drawer for non-resident operational views.<br>- Preserve safe-area insets & Hallmark density. | **COMPLETED** | `src/components/common/Header.tsx`<br>`src/components/common/Sidebar.tsx`<br>`src/components/common/MobileBottomNav.tsx` | Officers can access all views on mobile viewport |
-| **5** | **WP-13** | **Google Sign-In Streamlining**<br>- Consolidate Google OAuth logic onto Supabase Auth provider.<br>- Clean up redundant modal states in `AuthPage.tsx`.<br>- Verify resident auto-provisioning for Roxas barangays. | **COMPLETED** | `src/components/auth/AuthPage.tsx`<br>`src/context/AuthContext.tsx`<br>`index.html` | Streamlined Google Sign-In with reduced bundle size |
+| **1** | **WP-14** | **Fork Reconciliation, Reporting Persistence & Dedup Safety**<br>- Merged `fork/main` (`404235a`..`c2ad547`) into `main` with local fixes preserved (`CaseContext` fallback without polling `DELETE`, `useCases` sequential insert/ID sync, `duplicateReportDetector` Tagalog/Taglish + overlap guard, token-aligned `ResidentPortalView` modal, `.gitignore` restored).<br>- SQL fix applied on `chyayvzwsqihedopjqqh`; live Vercel deployment verified against `chyayvzwsqihedopjqqh`. | **COMPLETED** | `supabase_rls_and_columns_fix.sql`<br>`supabase_schema.sql`<br>`src/context/CaseContext.tsx`<br>`src/hooks/useCases.ts`<br>`src/utils/duplicateReportDetector.ts`<br>`src/components/resident/ResidentPortalView.tsx`<br>`.gitignore` | `tsc --noEmit`, `vite build`, dedup assertions, live Vercel/Supabase probe |
 
 ---
 
@@ -112,3 +104,18 @@ Tracking implementation of Phase 2 improvements (WP-09 through WP-13) based on [
   - `src/context/AuthContext.tsx`: Hardened `resolveOrProvisionSessionUser` to auto-provision new Google users with normalized `ROXAS_BARANGAYS` validation, docket ID generation (`RES-${brgy}-...`), and database upsert to `public.users`. Added fallback barangay resolution for existing resident profiles.
   - `index.html`: Removed dead external GSI script dependency (`accounts.google.com/gsi/client`), reducing network bloat and external script attack surface.
   - `npm run lint` (`tsc --noEmit`) and `npm run build` (`vite build`) passing cleanly with 0 errors.
+
+---
+
+### WP-14: Fork Reconciliation, Reporting Persistence & Dedup Safety
+- **Status:** [x] COMPLETED
+- **Verification & Deliverables**:
+  - [x] Created [supabase_rls_and_columns_fix.sql](supabase_rls_and_columns_fix.sql) for `chyayvzwsqihedopjqqh` (grants + `TO anon, authenticated` policies + 12 LGU escalation columns + storage/realtime + PostgREST schema reload); applied by user on `chyayvzwsqihedopjqqh`.
+  - [x] Fixed `idx_cases_is_escalated` ordering in `supabase_schema.sql` (placed after `ALTER TABLE ... ADD COLUMN`).
+  - [x] Merged `fork/main` (`404235a`, `683db38`, `c2ad547`) into `main`.
+  - [x] Reconciled `CaseContext.tsx`: kept empty `/api/cases` (`[]`) fallback to `supabase.from('cases')` and removed `c2ad547`'s destructive `deduplicateCaseList` auto-`DELETE` loop inside `fetchData`.
+  - [x] Fixed `useCases.ts` `createCase` & `persistCaseUpdate` to avoid parallel insert races and sync reassigned server IDs back to state/timeline.
+  - [x] Reconciled `duplicateReportDetector.ts`: kept `c2ad547`'s Tagalog/Taglish `SYNONYMS` + `normalizeWordRoot` + `isResolvedOrClosed` protection while preserving municipal boilerplate exclusion (`sitio`) and `hasContentOrLocationOverlap` guard.
+  - [x] Kept `ResidentPortalView.tsx` `showReportSubmittedModal` (`683db38`) and aligned backdrop/badge/button styles with `tokens.css` (`bg-ink/50`, `text-accent`, `border-rule`, `focus-visible:ring-focus`, `role="dialog"`).
+  - [x] Restored `.agents/`, `.claude/`, and `skills-lock.json` ignores in `.gitignore`.
+  - [x] Verified `npm run lint`, `npm run build`, dedup assertions (`unrelatedScore: 0.27` → `false`, `dupScore: 0.9` → `true`), and live production probes against `https://b-connect-roxas.vercel.app/` (`chyayvzwsqihedopjqqh.supabase.co`, `/api/cases` 200, `/api/users` 200).

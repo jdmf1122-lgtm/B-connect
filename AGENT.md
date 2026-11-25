@@ -18,11 +18,11 @@ The system connects four official user roles:
 
 ---
 
-## Active Phase: Phase 2 Database Persistence, RLS Hardening & Auth (WP-09 to WP-13)
+## Active Phase: Phase 3 — Fork Reconciliation, Reporting Persistence & Dedup Safety (WP-14)
 
-Phase 1 (Hallmark Multi-Screen Redesign, WP-01 to WP-08) is complete and verified across all 34 source files (0 sloplint errors, clean production build).
+Phase 1 (WP-01 to WP-08) and Phase 2 (WP-09 to WP-13) are complete and verified (`tsc --noEmit` 0 errors, clean `vite build`).
 
-The active phase focuses on backend resilience, full case mutation proxying, Supabase Row Level Security hardening, mobile navigation restoration, and Google OAuth streamlining ([WP-09 through WP-13](SPEC.md)).
+The active phase reconciles `jdmf1122-lgtm/barangay` (`fork/main`) into `main` once `lgtm` stops pushing commits, fixes report persistence/visibility against Supabase `chyayvzwsqihedopjqqh`, and prevents false-positive deduplication or destructive polling deletes ([WP-14](SPEC.md)).
 
 ---
 
@@ -45,6 +45,8 @@ The active phase focuses on backend resilience, full case mutation proxying, Sup
   - **Preserve Wiring & State**: Never drop or alter form handlers, context hooks (`useCases`, `useAuth`, `useUI`, `useNotifications`), Supabase realtime subscriptions, or Leaflet map layers.
   - **Official Fixed Credentials**: Maintain fixed credential availability (`mdrrmoroxas@gmail.com` / `mdrrmo2026`, `lguroxas@gmail.com` / `lguroxas2026`) and instant demo persona access.
   - **Dual-Mode Offline Fallback**: Always maintain offline/demo state fallbacks so evaluators and municipal personnel can operate without live backend dependencies.
+- **Submission-Time Deduplication Only**: Never delete rows from Supabase inside `CaseContext` polling (`fetchData`); deduplicate only at submission time with strict content/location overlap checks.
+- **No Parallel Insert Races**: Keep `createCase` sequential (`supabase` → `23505` retry → `/api/cases` fallback) and reconcile any server-assigned case ID back into state.
 
 ---
 
@@ -65,3 +67,4 @@ The active phase focuses on backend resilience, full case mutation proxying, Sup
 - Hardcode Supabase service role keys in client bundles.
 - Drop or rename existing component props, test IDs, or Supabase realtime channels.
 - Mark any deliverable complete without verifiable build and typecheck evidence.
+- Auto-delete database cases inside `CaseContext` polling loops (`deduplicateCaseList` + `DELETE`).
