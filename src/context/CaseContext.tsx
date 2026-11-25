@@ -113,15 +113,38 @@ export const CaseProvider: React.FC<{ children: ReactNode; isAuthenticated: bool
         }
 
         if (fetchedCases && Array.isArray(fetchedCases)) {
-          const remoteCases = fetchedCases.map((c: any) => sanitizeCaseBarangay(c));
+          const sanitizedRemote = fetchedCases.map((c: any) => sanitizeCaseBarangay(c));
+          const { cleanedCases: remoteCases, removedDuplicates } = deduplicateCaseList(sanitizedRemote);
+
+          if (removedDuplicates.length > 0) {
+            for (const { duplicate, primary } of removedDuplicates) {
+              supabase.from('cases').delete().eq('id', duplicate.id).then(() => {});
+              fetch(`/api/cases?id=${encodeURIComponent(duplicate.id)}`, { method: 'DELETE' }).catch(() => {});
+              fetch(`/api/cases?id=${encodeURIComponent(primary.id)}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  id: primary.id,
+                  imageUrls: primary.imageUrls,
+                  witnesses: primary.witnesses,
+                  personsInvolved: primary.personsInvolved,
+                  timeline: primary.timeline,
+                  dateLastUpdated: primary.dateLastUpdated,
+                  _isUpdate: true
+                })
+              }).catch(() => {});
+            }
+          }
+
           const remoteIds = new Set(remoteCases.map((c) => c.id));
+          const removedIds = new Set(removedDuplicates.map((r) => r.duplicate.id));
 
           setCases((prev) => {
             if (remoteCases.length === 0 && prev.length > 0) return prev;
             const mergedMap = new Map<string, Case>();
             const prevMap = new Map<string, Case>();
             (prev || []).forEach((c) => {
-              if (c?.id) prevMap.set(c.id, c);
+              if (c?.id && !removedIds.has(c.id)) prevMap.set(c.id, c);
             });
 
             // 1. Add all remote cases, protecting local optimistic edits that are newer

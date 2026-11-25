@@ -10,50 +10,106 @@ const STOP_WORDS = new Set([
   'of', 'with', 'and', 'or', 'it', 'this', 'that', 'from', 'by', 'be', 'been'
 ]);
 
-// Synonym mapping to normalize variations in Filipino and English reporting
+// Synonym mapping to normalize variations in Filipino, Taglish, and English reporting
 const SYNONYMS: Record<string, string> = {
-  // Collisions & Accidents
+  // Collisions & Accidents (Tagalog, Taglish, English)
+  'bangga': 'collision',
   'banggaan': 'collision',
   'nagkabanggaan': 'collision',
   'nabangga': 'collision',
+  'binangga': 'collision',
+  'bumangga': 'collision',
+  'mababangga': 'collision',
+  'bunggo': 'collision',
+  'nabunggo': 'collision',
+  'binunggo': 'collision',
+  'bumunggo': 'collision',
+  'nagkabungguan': 'collision',
+  'bundol': 'collision',
+  'nabundol': 'collision',
+  'binundol': 'collision',
+  'sagasa': 'collision',
+  'nasagasaan': 'collision',
+  'sinagasaan': 'collision',
   'aksidente': 'collision',
+  'naaksidente': 'collision',
   'accident': 'collision',
+  'accidents': 'collision',
   'crash': 'collision',
+  'crashed': 'collision',
+  'collided': 'collision',
+  'hit': 'collision',
+  'nahit': 'collision',
+  'struck': 'collision',
+  'rammed': 'collision',
+  'smashed': 'collision',
+  'bumped': 'collision',
   'disgrasya': 'collision',
+  'nadisgrasya': 'collision',
   'semplang': 'collision',
+  'sumemplang': 'collision',
+  'nasemplang': 'collision',
   'salpok': 'collision',
+  'sumalpok': 'collision',
+  'nasalpok': 'collision',
+  'binalpok': 'collision',
   'nagkasalpukan': 'collision',
   'karambola': 'collision',
   'collision': 'collision',
   't-bone': 'collision',
+  'taob': 'collision',
+  'tumaob': 'collision',
+  'overturned': 'collision',
+  'rollover': 'collision',
+  'slide': 'collision',
+  'nadulas': 'collision',
+  'skid': 'collision',
 
-  // Vehicles
+  // Vehicles (Tagalog, Taglish, English)
   'motor': 'motorcycle',
   'motorsiklo': 'motorcycle',
   'motorcycle': 'motorcycle',
+  'motorbike': 'motorcycle',
+  'bike': 'motorcycle',
   'mc': 'motorcycle',
   'scooter': 'motorcycle',
   'raider': 'motorcycle',
   'mio': 'motorcycle',
   'click': 'motorcycle',
+  'nmax': 'motorcycle',
+  'pcx': 'motorcycle',
   'kotse': 'car',
   'auto': 'car',
   'sasakyan': 'car',
+  'vehicle': 'car',
+  'vehicular': 'car',
   'car': 'car',
   'sedan': 'car',
   'suv': 'car',
   'van': 'car',
   'vios': 'car',
+  'pickup': 'car',
+  'hilux': 'car',
+  'fortuner': 'car',
+  'montero': 'car',
   'traysikel': 'tricycle',
   'tricycle': 'tricycle',
   'trike': 'tricycle',
   'toda': 'tricycle',
+  'ebike': 'tricycle',
+  'etrike': 'tricycle',
   'trak': 'truck',
   'truck': 'truck',
+  'lorry': 'truck',
+  'dump': 'truck',
+  'dumptruck': 'truck',
+  'wingvan': 'truck',
+  'trailer': 'truck',
   'elf': 'truck',
   'bus': 'puv',
   'jeep': 'puv',
   'jeepney': 'puv',
+  'multicab': 'puv',
 
   // Prepositions / Landmarks
   'tapat': 'front',
@@ -121,7 +177,38 @@ export function normalizeText(text?: string | null): string {
 }
 
 /**
- * Tokenizes text, strips stopwords, and maps synonyms
+ * Normalizes Filipino / Taglish / English morphological inflections
+ * (e.g., "binangga", "nabangga", "bumangga", "nagkabanggaan" -> "collision")
+ */
+function normalizeWordRoot(word: string): string {
+  if (SYNONYMS[word]) return SYNONYMS[word];
+
+  if (
+    word.includes('bangga') ||
+    word.includes('bunggo') ||
+    word.includes('bundol') ||
+    word.includes('sagasa') ||
+    word.includes('salpok') ||
+    word.includes('semplang') ||
+    word.includes('aksident') ||
+    word.includes('accident') ||
+    word.includes('disgrasya') ||
+    word.includes('collid') ||
+    word.includes('collis') ||
+    word.includes('crash')
+  ) {
+    return 'collision';
+  }
+  if (word.includes('trak') || word.includes('truck')) return 'truck';
+  if (word.includes('motor')) return 'motorcycle';
+  if (word.includes('traysik') || word.includes('tricyc') || word.includes('trike')) return 'tricycle';
+  if (word.includes('kotse') || word.includes('sasakyan')) return 'car';
+
+  return word;
+}
+
+/**
+ * Tokenizes text, strips stopwords, and maps synonyms & Filipino/Taglish/English word roots
  */
 export function extractNormalizedTokens(text?: string | null): string[] {
   const norm = normalizeText(text);
@@ -132,7 +219,7 @@ export function extractNormalizedTokens(text?: string | null): string[] {
   for (const w of words) {
     if (!w || w.length < 2) continue;
     if (STOP_WORDS.has(w)) continue;
-    const mapped = SYNONYMS[w] || w;
+    const mapped = normalizeWordRoot(w);
     tokens.push(mapped);
   }
 
@@ -528,14 +615,15 @@ export function deduplicateCaseList(allCases: Case[]): {
     const current = sorted[i];
     if (duplicateIds.has(current.id)) continue;
 
-    // Do not deduplicate seed cases against each other (strictly BC-2026-001 to BC-2026-008)
-    const isSeed = Boolean(current.id && /^BC-2026-00[1-8]$/.test(current.id));
+    // Only protect resolved/closed historical cases from being merged as duplicates
+    const isResolvedOrClosed = current.status === 'Resolved' || (current.status as any) === 'Closed';
 
     let matchedPrimary: Case | null = null;
     let matchRes: DuplicateCheckResult | null = null;
 
-    if (!isSeed) {
+    if (!isResolvedOrClosed) {
       for (const existing of cleaned) {
+        if (existing.status === 'Resolved' || (existing.status as any) === 'Closed') continue;
         const evalRes = evaluateDuplicateReports(existing, current);
         if (evalRes.isDuplicate) {
           matchedPrimary = existing;
