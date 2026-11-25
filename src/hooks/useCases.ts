@@ -108,23 +108,22 @@ export const useCases = () => {
       }
     }
 
-    // 1. Direct Supabase client update
-    supabase
-      .from('cases')
-      .update(dbPayload)
-      .eq('id', caseId)
-      .then(({ error }) => {
-        if (error) console.error('Direct Supabase update notice:', error.message);
-      });
+    (async () => {
+      try {
+        const { error } = await supabase.from('cases').update(dbPayload).eq('id', caseId);
+        if (!error) return;
+        console.error('Direct Supabase update notice:', error.message);
+      } catch (e) {}
 
-    // 2. Persist via backend API proxy (bypasses RLS using service role key)
-    try {
-      fetch(`/api/cases?id=${encodeURIComponent(caseId)}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: caseId, ...dbPayload, _isUpdate: true })
-      }).catch(() => {});
-    } catch (e) {}
+      // Fallback to backend API proxy (uses service role key when configured)
+      try {
+        await fetch(`/api/cases?id=${encodeURIComponent(caseId)}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: caseId, ...dbPayload, _isUpdate: true })
+        });
+      } catch (e) {}
+    })();
   };
 
   const createCase = (data: Partial<Case>): string => {
@@ -305,11 +304,14 @@ export const useCases = () => {
       }
     }
 
-    // 1. Direct client insert into Supabase cases table (auto-resolves any ID collision so old cases are never overwritten)
+    // 1. Direct client insert into Supabase cases table; fall back to /api/cases only if direct insert fails
     (async () => {
+      let persisted = false;
       try {
         const { error } = await supabase.from('cases').insert(dbPayload);
-        if (error && (error.code === '23505' || error.message?.includes('duplicate key'))) {
+        if (!error) {
+          persisted = true;
+        } else if (error.code === '23505' || error.message?.includes('duplicate key')) {
           const { data: allDbIds } = await supabase.from('cases').select('id');
           let dbMax = nextNum;
           (allDbIds || []).forEach((row: any) => {
@@ -324,28 +326,43 @@ export const useCases = () => {
             ...dbPayload,
             id: newUniqueId,
             incidentId: `INC-${year}-${String(dbMax).padStart(3, '0')}`,
-            complaintId: `CMP-${year}-${String(dbMax).padStart(3, '0')}`
+            complaintId: `CMP-${year}-${String(dbMax).padStart(3, '0')}`,
+            timeline: Array.isArray(dbPayload.timeline)
+              ? dbPayload.timeline.map((t: TimelineEvent) => ({ ...t, caseId: newUniqueId }))
+              : dbPayload.timeline
           };
-          await supabase.from('cases').insert(retryPayload);
-          setCases((prev) =>
-            prev.map((c) => (c.id === caseId ? { ...c, ...retryPayload } : c))
-          );
-        } else if (error) {
+          const { error: retryErr } = await supabase.from('cases').insert(retryPayload);
+          if (!retryErr) {
+            persisted = true;
+            setCases((prev) =>
+              prev.map((c) => (c.id === caseId ? { ...c, ...retryPayload } : c))
+            );
+          }
+        } else {
           console.error('Direct Supabase insert error:', error.message, error);
         }
       } catch (e) {
         console.warn('Supabase case insert notice:', e);
       }
-    })();
 
-    // 2. Guarantee database persistence via backend admin service role (works on laptop & mobile via relative /api/cases proxy)
-    try {
-      fetch('/api/cases', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(dbPayload)
-      }).catch(() => {});
-    } catch (e) { }
+      if (!persisted) {
+        try {
+          const resp = await fetch('/api/cases', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(dbPayload)
+          });
+          if (resp.ok) {
+            const json = await resp.json();
+            if (json?.case?.id && json.case.id !== caseId) {
+              setCases((prev) =>
+                prev.map((c) => (c.id === caseId ? { ...c, ...json.case } : c))
+              );
+            }
+          }
+        } catch (e) {}
+      }
+    })();
 
     // Instant local cross-tab broadcast (0ms latency)
     if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
