@@ -2,17 +2,12 @@ import React, { createContext, useState, useEffect, ReactNode } from 'react';
 import { Case, AuditLog, ROXAS_BARANGAYS } from '../types';
 import { supabase } from '../utils/supabaseClient';
 import { SEED_CASES, SEED_AUDIT_LOGS } from '../data/seedData';
-import {
-  findDuplicateInCases,
-  mergeDuplicateIntoPrimary,
-  deduplicateCaseList
-} from '../utils/duplicateReportDetector';
-
 
 export const sanitizeCaseBarangay = (rawCase: any): Case => {
   let b = rawCase.barangay;
   if (!ROXAS_BARANGAYS.includes(b as any)) {
-    b = 'San Aquilino';
+    const match = ROXAS_BARANGAYS.find((brgy) => brgy.toLowerCase() === (b || '').trim().toLowerCase());
+    b = match || 'San Aquilino';
   }
 
   let derivedTime = rawCase.incidentTime;
@@ -25,17 +20,37 @@ export const sanitizeCaseBarangay = (rawCase: any): Case => {
     } catch (e) {}
   }
 
+  const parseArray = (val: any) => {
+    if (Array.isArray(val)) return val;
+    if (typeof val === 'string') {
+      try {
+        const parsed = JSON.parse(val);
+        if (Array.isArray(parsed)) return parsed;
+      } catch (e) {}
+    }
+    return [];
+  };
+
   return {
     ...rawCase,
     emergencyAlarmAcknowledged: Boolean(rawCase.emergencyAlarmAcknowledged),
+    emergencyFirstRespondersDispatched: Boolean(rawCase.emergencyFirstRespondersDispatched),
     isCitizenReport: rawCase.isCitizenReport !== undefined ? Boolean(rawCase.isCitizenReport) : true,
+    isEscalatedToLgu: Boolean(rawCase.isEscalatedToLgu),
+    escalationSmsDelivered: Boolean(rawCase.escalationSmsDelivered),
     barangay: b,
     incidentTime: derivedTime,
-    personsInvolved: Array.isArray(rawCase.personsInvolved) ? rawCase.personsInvolved.map((p: any) => ({
+    timeline: parseArray(rawCase.timeline),
+    imageUrls: parseArray(rawCase.imageUrls),
+    complainants: parseArray(rawCase.complainants),
+    respondents: parseArray(rawCase.respondents),
+    witnesses: parseArray(rawCase.witnesses),
+    vehiclesInvolved: parseArray(rawCase.vehiclesInvolved),
+    personsInvolved: parseArray(rawCase.personsInvolved).map((p: any) => ({
       ...p,
       barangay: ROXAS_BARANGAYS.includes(p.barangay as any) ? p.barangay : b
-    })) : [],
-    statusHistory: Array.isArray(rawCase.statusHistory) ? rawCase.statusHistory : []
+    })),
+    statusHistory: parseArray(rawCase.statusHistory)
   };
 };
 
@@ -80,7 +95,7 @@ export const CaseProvider: React.FC<{ children: ReactNode; isAuthenticated: bool
           const resp = await fetch('/api/cases');
           if (resp.ok) {
             const json = await resp.json();
-            if (Array.isArray(json.cases) && json.cases.length > 0) {
+            if (Array.isArray(json.cases)) {
               fetchedCases = json.cases;
             }
           }
@@ -93,7 +108,7 @@ export const CaseProvider: React.FC<{ children: ReactNode; isAuthenticated: bool
           supabase.from('audit_logs').select('*').order('timestamp', { ascending: false })
         ]);
 
-        if (!fetchedCases && casesRes.data && Array.isArray(casesRes.data) && casesRes.data.length > 0) {
+        if (!fetchedCases && casesRes.data && Array.isArray(casesRes.data)) {
           fetchedCases = casesRes.data;
         }
 
@@ -104,14 +119,36 @@ export const CaseProvider: React.FC<{ children: ReactNode; isAuthenticated: bool
           setCases((prev) => {
             if (remoteCases.length === 0 && prev.length > 0) return prev;
             const mergedMap = new Map<string, Case>();
-            // 1. Add all cases from Supabase database (both old & new)
-            remoteCases.forEach((c) => mergedMap.set(c.id, c));
-            // 2. Preserve any locally created case not yet in remote and push it to Supabase
+            const prevMap = new Map<string, Case>();
+            (prev || []).forEach((c) => {
+              if (c?.id) prevMap.set(c.id, c);
+            });
+
+            // 1. Add all remote cases, protecting local optimistic edits that are newer
+            remoteCases.forEach((remoteCase) => {
+              const localCase = prevMap.get(remoteCase.id);
+              if (localCase) {
+                const localTime = new Date(localCase.dateLastUpdated || localCase.dateCreated || 0).getTime();
+                const remoteTime = new Date(remoteCase.dateLastUpdated || remoteCase.dateCreated || 0).getTime();
+                if (localTime > remoteTime) {
+                  mergedMap.set(remoteCase.id, { ...remoteCase, ...localCase });
+                  return;
+                }
+              }
+              mergedMap.set(remoteCase.id, remoteCase);
+            });
+
+            // 2. Retain local cases pending remote persistence (created within last 60s or if offline)
+            const now = Date.now();
             (prev || []).forEach((localCase) => {
               if (localCase?.id && !remoteIds.has(localCase.id)) {
-                mergedMap.set(localCase.id, localCase);
+                const createdTime = new Date(localCase.dateCreated || localCase.dateReported || 0).getTime();
+                if (now - createdTime < 60000 || (typeof navigator !== 'undefined' && !navigator.onLine)) {
+                  mergedMap.set(localCase.id, localCase);
+                }
               }
             });
+
             return Array.from(mergedMap.values()).sort((a, b) =>
               new Date(b.dateCreated || b.dateReported || 0).getTime() -
               new Date(a.dateCreated || a.dateReported || 0).getTime()
@@ -138,13 +175,6 @@ export const CaseProvider: React.FC<{ children: ReactNode; isAuthenticated: bool
             const incoming = sanitizeCaseBarangay(event.data.payload);
             setCases((prev) => {
               if (prev.some((c) => c.id === incoming.id)) return prev;
-              const dupMatch = findDuplicateInCases(incoming, prev);
-              if (dupMatch) {
-                const { matchedCase } = dupMatch;
-                const consolidated = mergeDuplicateIntoPrimary(matchedCase, incoming);
-                supabase.from('cases').delete().eq('id', incoming.id).then(() => {});
-                return prev.map((c) => (c.id === consolidated.id ? consolidated : c));
-              }
               return [incoming, ...prev];
             });
           } else if (event.data?.type === 'UPDATE_CASE' && event.data.payload) {

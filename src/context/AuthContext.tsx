@@ -1,5 +1,5 @@
 import React, { createContext, useState, useEffect, ReactNode } from 'react';
-import { User } from '../types';
+import { User, ROXAS_BARANGAYS } from '../types';
 import { supabase } from '../utils/supabaseClient';
 import { SEED_USERS } from '../data/seedData';
 
@@ -126,7 +126,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       // Auto-provision Resident profile if user signed in via real Google OAuth for the first time
       if (!profile && authUser.email) {
         const meta = authUser.user_metadata || {};
-        const pendingBrgy = localStorage.getItem('bconnect_pending_google_barangay') || 'Bagumbayan';
+        const rawPending = meta.barangay || localStorage.getItem('bconnect_pending_google_barangay') || 'Bagumbayan';
+        const pendingBrgy = ROXAS_BARANGAYS.find((b) => b.toLowerCase() === String(rawPending).trim().toLowerCase()) || 'Bagumbayan';
         const displayName =
           meta.full_name ||
           meta.name ||
@@ -153,6 +154,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           localStorage.setItem('bconnect_roxas_users_v11', JSON.stringify(updated));
           return updated;
         });
+
+        try {
+          localStorage.removeItem('bconnect_pending_google_barangay');
+        } catch {}
       }
 
       if (profile) {
@@ -162,6 +167,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           if (profileUser.agencyType === 'MDRRMO') profileUser.avatarUrl = '/mdrrmo_logo.png';
           else if (profileUser.agencyType === 'LGU') profileUser.avatarUrl = '/lgu_logo.png';
           else profileUser.avatarUrl = meta.avatar_url || meta.picture || '/bconnect_logo_transparent.png';
+        }
+        if (!profileUser.barangay && profileUser.role === 'RESIDENT') {
+          const rawPending = meta.barangay || localStorage.getItem('bconnect_pending_google_barangay') || 'Bagumbayan';
+          profileUser.barangay = ROXAS_BARANGAYS.find((b) => b.toLowerCase() === String(rawPending).trim().toLowerCase()) || 'Bagumbayan';
         }
         return profileUser;
       }

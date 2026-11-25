@@ -32,7 +32,10 @@ export const SUPABASE_CASE_COLUMNS = new Set([
   'collisionImpactType', 'roadSurfaceCondition', 'weatherCondition',
   'injuriesCount', 'casualtiesCount', 'isHitAndRun', 'respondingAmbulanceUnit',
   'hospitalTransported', 'dateCreated', 'dateLastUpdated', 'createdBy',
-  'isConfidential'
+  'isConfidential', 'isEscalatedToLgu', 'escalatedAt', 'escalationReason',
+  'escalationSmsDelivered', 'escalationSmsBody', 'escalationSmsRecipient',
+  'escalationSmsRecipientPhone', 'escalationElapsedStr', 'lguActionTaken',
+  'lguInterventionNotes', 'lguActionDate', 'lguActionPersonnel'
 ]);
 
 export const useCases = () => {
@@ -97,6 +100,33 @@ export const useCases = () => {
     } catch (e) { }
   };
 
+  const persistCaseUpdate = (caseId: string, updates: Record<string, any>) => {
+    const dbPayload: Record<string, any> = {};
+    for (const key of Object.keys(updates)) {
+      if (SUPABASE_CASE_COLUMNS.has(key) && updates[key] !== undefined) {
+        dbPayload[key] = updates[key];
+      }
+    }
+
+    // 1. Direct Supabase client update
+    supabase
+      .from('cases')
+      .update(dbPayload)
+      .eq('id', caseId)
+      .then(({ error }) => {
+        if (error) console.error('Direct Supabase update notice:', error.message);
+      });
+
+    // 2. Persist via backend API proxy (bypasses RLS using service role key)
+    try {
+      fetch(`/api/cases?id=${encodeURIComponent(caseId)}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: caseId, ...dbPayload, _isUpdate: true })
+      }).catch(() => {});
+    } catch (e) {}
+  };
+
   const createCase = (data: Partial<Case>): string => {
     // Enforcement: Only verified resident citizens can submit incident reports
     if (currentUser?.agencyType === 'LGU' || currentUser?.agencyType === 'MDRRMO') {
@@ -113,16 +143,8 @@ export const useCases = () => {
       // Update local state so only the single consolidated record is maintained
       setCases((prev) => prev.map((c) => (c.id === consolidatedCase.id ? consolidatedCase : c)));
 
-      // Persist consolidated update to Supabase
-      const updatePayload: Record<string, any> = {};
-      for (const key of Object.keys(consolidatedCase)) {
-        if (SUPABASE_CASE_COLUMNS.has(key) && (consolidatedCase as any)[key] !== undefined) {
-          updatePayload[key] = (consolidatedCase as any)[key];
-        }
-      }
-      supabase.from('cases').update(updatePayload).eq('id', consolidatedCase.id).then(({ error }) => {
-        if (error) console.error('Error updating consolidated case in Supabase:', error);
-      });
+      // Persist consolidated update to Supabase & backend proxy
+      persistCaseUpdate(consolidatedCase.id, consolidatedCase);
 
       // Broadcast update across tabs
       if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
@@ -440,11 +462,14 @@ export const useCases = () => {
           statusHistory: [newStatusItem, ...c.statusHistory],
           timeline: [...c.timeline, newTimelineEvent],
         };
-        supabase.from('cases').update({
-          status: updatedCase.status, dateResolved: updatedCase.dateResolved,
-          resolutionSummary: updatedCase.resolutionSummary, dateLastUpdated: updatedCase.dateLastUpdated,
-          statusHistory: updatedCase.statusHistory, timeline: updatedCase.timeline
-        }).eq('id', caseId).then(({ error }) => { if (error) console.error(error) });
+        persistCaseUpdate(caseId, {
+          status: updatedCase.status,
+          dateResolved: updatedCase.dateResolved,
+          resolutionSummary: updatedCase.resolutionSummary,
+          dateLastUpdated: updatedCase.dateLastUpdated,
+          statusHistory: updatedCase.statusHistory,
+          timeline: updatedCase.timeline
+        });
 
         // Broadcast updated case
         if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
@@ -483,17 +508,130 @@ export const useCases = () => {
     );
   };
 
+  const assignPersonnel = (caseId: string, personnel: string, contact?: string) => {
+    const now = new Date().toISOString();
+    const newTimelineEvent: TimelineEvent = {
+      id: `TL-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+      caseId,
+      title: `Personnel Assigned: ${personnel}`,
+      description: `Assigned handling personnel updated to ${personnel}${contact ? ` (Contact: ${contact})` : ''} by ${currentUser.name} (${currentUser.agencyName}).`,
+      stage: 'Initial Assessment',
+      actorName: currentUser.name,
+      actorRole: currentUser.position,
+      actorAgency: currentUser.agencyName,
+      timestamp: now
+    };
+
+    setCases((prev) =>
+      prev.map((c) => {
+        if (c.id !== caseId) return c;
+        const updatedCase: Case = {
+          ...c,
+          assignedPersonnel: personnel,
+          assignedPersonnelContact: contact || c.assignedPersonnelContact,
+          timeline: [...c.timeline, newTimelineEvent],
+          dateLastUpdated: now
+        };
+
+        persistCaseUpdate(caseId, {
+          assignedPersonnel: updatedCase.assignedPersonnel,
+          assignedPersonnelContact: updatedCase.assignedPersonnelContact,
+          timeline: updatedCase.timeline,
+          dateLastUpdated: now
+        });
+
+        if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
+          try {
+            const bc = new BroadcastChannel('bconnect_cases_sync');
+            bc.postMessage({ type: 'UPDATE_CASE', payload: updatedCase });
+            bc.close();
+          } catch (e) {}
+        }
+        try {
+          supabase.channel('cases_realtime_sync').send({
+            type: 'broadcast',
+            event: 'case_event',
+            payload: { type: 'UPDATE_CASE', data: updatedCase }
+          });
+        } catch (e) {}
+
+        return updatedCase;
+      })
+    );
+
+    logActivity('PERSONNEL_ASSIGNED', caseId, `Assigned ${personnel} to Case #${caseId}.`);
+    triggerNotification(
+      `Personnel Assigned: #${caseId}`,
+      `${personnel} assigned to Case #${caseId}.`,
+      'system',
+      caseId,
+      currentUser.agencyName,
+      'normal'
+    );
+  };
+
+  const logInvestigationNarrative = (caseId: string, narrative: string, stage: TimelineEvent['stage'] = 'Initial Assessment') => {
+    const now = new Date().toISOString();
+    const newTimelineEvent: TimelineEvent = {
+      id: `TL-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+      caseId,
+      title: 'Investigation Narrative Logged',
+      description: narrative,
+      stage,
+      actorName: currentUser.name,
+      actorRole: currentUser.position,
+      actorAgency: currentUser.agencyName,
+      timestamp: now
+    };
+
+    setCases((prev) =>
+      prev.map((c) => {
+        if (c.id !== caseId) return c;
+        const updatedCase: Case = {
+          ...c,
+          currentNarrativeSummary: narrative,
+          timeline: [...c.timeline, newTimelineEvent],
+          dateLastUpdated: now
+        };
+
+        persistCaseUpdate(caseId, {
+          currentNarrativeSummary: updatedCase.currentNarrativeSummary,
+          timeline: updatedCase.timeline,
+          dateLastUpdated: now
+        });
+
+        if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
+          try {
+            const bc = new BroadcastChannel('bconnect_cases_sync');
+            bc.postMessage({ type: 'UPDATE_CASE', payload: updatedCase });
+            bc.close();
+          } catch (e) {}
+        }
+        try {
+          supabase.channel('cases_realtime_sync').send({
+            type: 'broadcast',
+            event: 'case_event',
+            payload: { type: 'UPDATE_CASE', data: updatedCase }
+          });
+        } catch (e) {}
+
+        return updatedCase;
+      })
+    );
+
+    logActivity('NARRATIVE_LOGGED', caseId, `Recorded investigation narrative for Case #${caseId}.`);
+  };
+
   const deleteCase = async (caseId: string): Promise<boolean> => {
     try {
-      // 1. Delete from Supabase & backend API
+      // 1. Delete from Supabase & backend API proxy
       const { error } = await supabase.from('cases').delete().eq('id', caseId);
       if (error) {
         console.error('Error deleting case from Supabase:', error);
       }
-      const backendUrl = import.meta.env.VITE_BACKEND_URL || (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') ? 'http://localhost:3001' : '');
-      if (backendUrl) {
-        fetch(`${backendUrl}/api/cases/${caseId}`, { method: 'DELETE' }).catch(() => {});
-      }
+      try {
+        fetch(`/api/cases?id=${encodeURIComponent(caseId)}`, { method: 'DELETE' }).catch(() => {});
+      } catch (e) {}
 
       // 2. Update local state
       setCases((prev) => prev.filter((c) => c.id !== caseId));
@@ -541,7 +679,7 @@ export const useCases = () => {
       prev.map((c) => {
         if (c.id !== caseId) return c;
         const updatedCase = { ...c, timeline: [...c.timeline, newEvent], dateLastUpdated: now };
-        supabase.from('cases').update({ timeline: updatedCase.timeline, dateLastUpdated: updatedCase.dateLastUpdated }).eq('id', caseId).then(({ error }) => { if (error) console.error(error) });
+        persistCaseUpdate(caseId, { timeline: updatedCase.timeline, dateLastUpdated: updatedCase.dateLastUpdated });
         return updatedCase;
       })
     );
@@ -578,11 +716,12 @@ export const useCases = () => {
           timeline: [...c.timeline, newEvent],
           dateLastUpdated: now
         };
-        supabase.from('cases').update({
+        persistCaseUpdate(caseId, {
           emergencyAlarmAcknowledged: true,
           emergencyFirstRespondersDispatched: true,
           timeline: updatedCase.timeline,
-        }).eq('id', caseId).then(({ error }) => { if (error) console.error(error) });
+          dateLastUpdated: now
+        });
 
         // Broadcast updated case to all users
         if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
@@ -691,8 +830,8 @@ export const useCases = () => {
       return prev.map((c) => (c.id === caseId ? updatedCase : c));
     });
 
-    // Persist to Supabase cases table
-    supabase.from('cases').update({
+    // Persist to Supabase cases table & proxy
+    persistCaseUpdate(caseId, {
       isEscalatedToLgu: true,
       escalatedAt: now,
       escalationReason: eventDescription,
@@ -705,7 +844,7 @@ export const useCases = () => {
       status: 'Escalated to LGU',
       timeline: updatedCaseRef ? (updatedCaseRef as Case).timeline : [newEvent],
       dateLastUpdated: now
-    }).eq('id', caseId).then(({ error }) => { if (error) console.error(error) });
+    });
 
     // Cross-tab broadcast
     if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
@@ -792,7 +931,7 @@ export const useCases = () => {
           dateLastUpdated: now
         };
 
-        supabase.from('cases').update({
+        persistCaseUpdate(caseId, {
           status: newStatus,
           lguActionTaken: actionType,
           lguInterventionNotes: directiveNotes,
@@ -800,7 +939,7 @@ export const useCases = () => {
           lguActionPersonnel: updatedCase.lguActionPersonnel,
           timeline: updatedCase.timeline,
           dateLastUpdated: now
-        }).eq('id', caseId).then(({ error }) => { if (error) console.error(error) });
+        });
 
         if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
           try {
@@ -845,6 +984,8 @@ export const useCases = () => {
     createCase,
     deleteCase,
     updateCaseStatus,
+    assignPersonnel,
+    logInvestigationNarrative,
     addCaseTimelineEvent,
     markIncidentAsSeenAndResponded,
     escalateIncidentToLgu,

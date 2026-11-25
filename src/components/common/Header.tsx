@@ -48,11 +48,19 @@ type ResidentProfileSubView =
   | 'PRIVACY'
   | 'SUGGESTIONS';
 
-export const Header: React.FC<{ onToggleSidebar?: () => void }> = () => {
+export const Header: React.FC<{ onToggleSidebar?: () => void }> = ({ onToggleSidebar }) => {
   const { currentUser, logout, updateUser, deleteUser } = useAuth();
   const { setSelectedCaseId } = useCases();
   const { unreadNotifCount, userNotifications, markNotificationAsRead, markAllNotificationsAsRead, triggerNotification } = useNotifications();
   const { isDark, toggleTheme, setIsNewCaseModalOpen, openEditAccountModal, setActiveTab, searchQuery, setSearchQuery, activeTab, isMobileMenuOpen, setIsMobileMenuOpen } = useUI();
+
+  const handleToggleMobileSidebar = () => {
+    if (onToggleSidebar) {
+      onToggleSidebar();
+    } else {
+      setIsMobileMenuOpen((prev) => !prev);
+    }
+  };
 
   const [isNotifOpen, setIsNotifOpen] = useState(false);
   const [isRoleDropdownOpen, setIsRoleDropdownOpen] = useState(false);
@@ -142,8 +150,26 @@ export const Header: React.FC<{ onToggleSidebar?: () => void }> = () => {
       id="bconnect-main-header"
       className="h-14 bg-paper border-b border-rule flex items-center justify-between px-3 sm:px-6 lg:px-8 sticky top-0 z-40 transition-colors"
     >
-      {/* Left: Agency seal & view title (no duplicate mobile hamburger menu) */}
-      <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+      {/* Left: Mobile hamburger (agency roles) & view title */}
+      <div className="flex items-center gap-1.5 sm:gap-3 min-w-0">
+        {!isResident && (
+          <button
+            id="btn-toggle-mobile-sidebar"
+            type="button"
+            onClick={handleToggleMobileSidebar}
+            className="lg:hidden min-w-[44px] min-h-[44px] p-2.5 -ml-1.5 text-ink hover:text-accent hover:bg-paper-2 rounded-md transition-colors cursor-pointer flex items-center justify-center focus-visible:ring-2 focus-visible:ring-focus flex-shrink-0"
+            aria-label={isMobileMenuOpen ? 'Close navigation drawer' : 'Open navigation drawer'}
+            aria-expanded={isMobileMenuOpen}
+            aria-controls="bconnect-sidebar-mobile"
+          >
+            {isMobileMenuOpen ? (
+              <X className="w-5 h-5 flex-shrink-0" />
+            ) : (
+              <Menu className="w-5 h-5 flex-shrink-0" />
+            )}
+          </button>
+        )}
+
         {currentUser.agencyType === 'MDRRMO' ? (
           <div className="flex items-center gap-1.5 flex-shrink-0">
             <img

@@ -9,17 +9,42 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-const SUPABASE_URL = process.env.VITE_SUPABASE_URL || '';
-const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+const SUPABASE_URL = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || '';
+const RAW_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_SERVICE_ROLE_KEY || '';
+const SUPABASE_ANON_KEY = process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || '';
 
-const supabaseAdmin = SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY
-  ? createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+function isServiceRoleKey(key: string): boolean {
+  if (!key || typeof key !== 'string') return false;
+  try {
+    const parts = key.split('.');
+    if (parts.length === 3) {
+      const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString('utf8'));
+      return payload.role === 'service_role';
+    }
+  } catch {
+    // Non-JWT key format fallback
+  }
+  return !key.toLowerCase().includes('anon') && key.length > 10;
+}
+
+const hasServiceRole = Boolean(SUPABASE_URL && isServiceRoleKey(RAW_SERVICE_KEY));
+const effectiveKey = (hasServiceRole ? RAW_SERVICE_KEY : SUPABASE_ANON_KEY) || '';
+
+// shortcut: graceful memory fallback when Supabase is unconfigured, upgrade to live cluster once env vars are provided
+const supabaseAdmin = SUPABASE_URL && effectiveKey
+  ? createClient(SUPABASE_URL, effectiveKey, {
       auth: {
         autoRefreshToken: false,
         persistSession: false
       }
     })
   : null;
+
+const PROTECTED_USER_IDS = new Set([
+  'USR-MDRRMO-ROXAS-FIXED',
+  'USR-LGU-ROXAS-FIXED',
+  'USR-ADMIN-ROXAS-FIXED'
+]);
 
 app.use(cors({
   origin: true,
@@ -69,12 +94,28 @@ app.get('/api/users', async (req, res) => {
 
 app.delete('/api/users', async (req, res) => {
   const id = (req.query?.id as string) || req.body?.id;
+  if (!id) {
+    return res.status(400).json({ success: false, message: 'Missing user id' });
+  }
+
+  // Safety check: protect fixed administrative accounts
+  if (PROTECTED_USER_IDS.has(id)) {
+    return res.status(403).json({
+      success: false,
+      message: 'Cannot delete fixed system administrative account.'
+    });
+  }
+
   try {
-    if (supabaseAdmin && id) {
+    if (supabaseAdmin) {
       await supabaseAdmin.from('users').delete().eq('id', id);
-      try {
-        await supabaseAdmin.auth.admin.deleteUser(id);
-      } catch {}
+      if (hasServiceRole) {
+        try {
+          await supabaseAdmin.auth.admin.deleteUser(id);
+        } catch (authDelErr) {
+          console.warn('Notice deleting user in auth admin:', authDelErr);
+        }
+      }
     }
     return res.json({ success: true });
   } catch (err: any) {
@@ -130,35 +171,37 @@ app.post('/api/auth/login', async (req, res) => {
       });
     }
 
-    // 3. Auto-sync password with Supabase Auth admin
-    if (supabaseAdmin && matchedUser.email) {
+    // 3. Auto-sync password with Supabase Auth admin only if service role key is strictly verified
+    if (supabaseAdmin && hasServiceRole && matchedUser.email) {
       try {
-        const { data: authList } = await supabaseAdmin.auth.admin.listUsers();
-        const existingAuth = authList?.users?.find(
-          (au: any) => au.email?.toLowerCase() === matchedUser.email.toLowerCase()
-        );
+        const { data: authList, error: authListErr } = await supabaseAdmin.auth.admin.listUsers();
+        if (!authListErr && authList?.users) {
+          const existingAuth = authList.users.find(
+            (au: any) => au.email?.toLowerCase() === matchedUser.email.toLowerCase()
+          );
 
-        if (existingAuth) {
-          if (cleanPasscode && cleanPasscode.length >= 6) {
-            await supabaseAdmin.auth.admin.updateUserById(existingAuth.id, {
-              password: cleanPasscode
+          if (existingAuth) {
+            if (cleanPasscode && cleanPasscode.length >= 6) {
+              await supabaseAdmin.auth.admin.updateUserById(existingAuth.id, {
+                password: cleanPasscode
+              });
+            }
+          } else {
+            await supabaseAdmin.auth.admin.createUser({
+              email: matchedUser.email,
+              password: cleanPasscode || '',
+              email_confirm: true,
+              user_metadata: {
+                name: matchedUser.name,
+                role: matchedUser.role,
+                agencyType: matchedUser.agencyType,
+                agencyName: matchedUser.agencyName,
+                barangay: matchedUser.barangay,
+                position: matchedUser.position,
+                badgeOrIdNumber: matchedUser.badgeOrIdNumber
+              }
             });
           }
-        } else {
-          await supabaseAdmin.auth.admin.createUser({
-            email: matchedUser.email,
-            password: cleanPasscode || '',
-            email_confirm: true,
-            user_metadata: {
-              name: matchedUser.name,
-              role: matchedUser.role,
-              agencyType: matchedUser.agencyType,
-              agencyName: matchedUser.agencyName,
-              barangay: matchedUser.barangay,
-              position: matchedUser.position,
-              badgeOrIdNumber: matchedUser.badgeOrIdNumber
-            }
-          });
         }
       } catch (authErr) {
         console.warn('Auth admin notice in server:', authErr);
@@ -188,7 +231,7 @@ app.post('/api/auth/register', async (req, res) => {
     const cleanEmail = newUserData.email?.trim() || `${newUserData.name.toLowerCase().replace(/[^a-z0-9]/g, '.')}@${newUserData.agencyType === 'MDRRMO' ? 'mdrrmo.' : ''}roxas.gov.ph`;
     const cleanPassword = newUserData.passcode?.trim() || '';
 
-    if (supabaseAdmin) {
+    if (supabaseAdmin && hasServiceRole) {
       try {
         const { data: authData, error: authErr } = await supabaseAdmin.auth.admin.createUser({
           email: cleanEmail,
@@ -208,11 +251,13 @@ app.post('/api/auth/register', async (req, res) => {
         if (authData?.user) {
           authId = authData.user.id;
         } else if (authErr?.message?.includes('already')) {
-          const { data: list } = await supabaseAdmin.auth.admin.listUsers();
-          const existing = list?.users?.find((u: any) => u.email?.toLowerCase() === cleanEmail.toLowerCase());
-          if (existing) {
-            authId = existing.id;
-            await supabaseAdmin.auth.admin.updateUserById(existing.id, { password: cleanPassword });
+          const { data: list, error: listErr } = await supabaseAdmin.auth.admin.listUsers();
+          if (!listErr && list?.users) {
+            const existing = list.users.find((u: any) => u.email?.toLowerCase() === cleanEmail.toLowerCase());
+            if (existing) {
+              authId = existing.id;
+              await supabaseAdmin.auth.admin.updateUserById(existing.id, { password: cleanPassword });
+            }
           }
         }
       } catch (authErr) {
@@ -276,7 +321,10 @@ const SUPABASE_CASE_COLUMNS = new Set([
   'collisionImpactType', 'roadSurfaceCondition', 'weatherCondition',
   'injuriesCount', 'casualtiesCount', 'isHitAndRun', 'respondingAmbulanceUnit',
   'hospitalTransported', 'dateCreated', 'dateLastUpdated', 'createdBy',
-  'isConfidential'
+  'isConfidential', 'isEscalatedToLgu', 'escalatedAt', 'escalationReason',
+  'escalationSmsDelivered', 'escalationSmsBody', 'escalationSmsRecipient',
+  'escalationSmsRecipientPhone', 'escalationElapsedStr', 'lguActionTaken',
+  'lguInterventionNotes', 'lguActionDate', 'lguActionPersonnel'
 ]);
 
 // Case Fetching, Creation & Deletion Endpoints (Admin Service Role bypasses RLS)
@@ -298,11 +346,17 @@ app.get('/api/cases', async (req, res) => {
   }
 });
 
-app.delete('/api/cases/:id', async (req, res) => {
-  const { id } = req.params;
+app.delete(['/api/cases', '/api/cases/:id'], async (req, res) => {
+  const id = (req.params?.id as string) || (req.query?.id as string) || req.body?.id;
+  if (!id) {
+    return res.status(400).json({ success: false, message: 'Missing case id' });
+  }
   try {
-    if (supabaseAdmin && id) {
-      await supabaseAdmin.from('cases').delete().eq('id', id);
+    if (supabaseAdmin) {
+      const { error } = await supabaseAdmin.from('cases').delete().eq('id', id);
+      if (error) {
+        return res.status(500).json({ success: false, message: error.message });
+      }
     }
     return res.json({ success: true });
   } catch (err: any) {
@@ -310,14 +364,15 @@ app.delete('/api/cases/:id', async (req, res) => {
   }
 });
 
-app.post('/api/cases', async (req, res) => {
-  const caseData = req.body;
-  if (!caseData || !caseData.id) {
-    return res.status(400).json({ success: false, message: 'Missing case data' });
+const handleCaseMutation = async (req: express.Request, res: express.Response) => {
+  const caseData = req.body || {};
+  const id = (req.params?.id as string) || (req.query?.id as string) || caseData.id;
+  if (!id) {
+    return res.status(400).json({ success: false, message: 'Missing case id' });
   }
 
   // Filter only valid database columns so PostgREST schema cache never rejects
-  const dbPayload: Record<string, any> = {};
+  const dbPayload: Record<string, any> = { id };
   for (const key of Object.keys(caseData)) {
     if (SUPABASE_CASE_COLUMNS.has(key) && caseData[key] !== undefined) {
       dbPayload[key] = caseData[key];
@@ -326,9 +381,13 @@ app.post('/api/cases', async (req, res) => {
 
   try {
     if (supabaseAdmin) {
-      const { data, error } = await supabaseAdmin.from('cases').upsert(dbPayload, { onConflict: 'id' }).select();
+      const isUpdate = req.method === 'PATCH' || caseData._isUpdate;
+      const { data, error } = isUpdate
+        ? await supabaseAdmin.from('cases').update(dbPayload).eq('id', id).select()
+        : await supabaseAdmin.from('cases').upsert(dbPayload, { onConflict: 'id' }).select();
+
       if (error) {
-        console.error('Supabase admin case upsert error:', error.message);
+        console.error('Supabase admin case mutation error:', error.message);
         return res.status(500).json({ success: false, message: error.message });
       }
       return res.json({ success: true, case: data?.[0] || dbPayload });
@@ -337,7 +396,11 @@ app.post('/api/cases', async (req, res) => {
   } catch (err: any) {
     return res.status(500).json({ success: false, message: err.message });
   }
-});
+};
+
+app.patch(['/api/cases', '/api/cases/:id'], handleCaseMutation);
+app.put(['/api/cases', '/api/cases/:id'], handleCaseMutation);
+app.post(['/api/cases', '/api/cases/:id'], handleCaseMutation);
 
 // MDRRMO SMS Gateway Endpoint for Automated Responder Alerts
 interface SmsDispatchPayload {

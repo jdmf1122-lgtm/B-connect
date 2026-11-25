@@ -1,19 +1,32 @@
 import { createClient } from '@supabase/supabase-js';
 
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || '';
-const SUPABASE_SERVICE_ROLE_KEY =
-  process.env.SUPABASE_SERVICE_ROLE_KEY ||
-  process.env.VITE_SUPABASE_SERVICE_ROLE_KEY ||
-  process.env.VITE_SUPABASE_ANON_KEY ||
-  '';
-const SUPABASE_ANON_KEY = process.env.VITE_SUPABASE_ANON_KEY || SUPABASE_SERVICE_ROLE_KEY;
+const RAW_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_SERVICE_ROLE_KEY || '';
+const SUPABASE_ANON_KEY = process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || '';
 
-const supabaseAdmin =
-  SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY
-    ? createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
-        auth: { autoRefreshToken: false, persistSession: false }
-      })
-    : null;
+function isServiceRoleKey(key: string): boolean {
+  if (!key || typeof key !== 'string') return false;
+  try {
+    const parts = key.split('.');
+    if (parts.length === 3) {
+      const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString('utf8'));
+      return payload.role === 'service_role';
+    }
+  } catch {
+    // Non-JWT key format fallback
+  }
+  return !key.toLowerCase().includes('anon') && key.length > 10;
+}
+
+const hasServiceRole = Boolean(SUPABASE_URL && isServiceRoleKey(RAW_SERVICE_KEY));
+const effectiveKey = (hasServiceRole ? RAW_SERVICE_KEY : SUPABASE_ANON_KEY) || '';
+
+// shortcut: use anon key for public.users read when service key is absent, upgrade to service role for auth.admin sync
+const supabaseClient = SUPABASE_URL && effectiveKey
+  ? createClient(SUPABASE_URL, effectiveKey, {
+      auth: { autoRefreshToken: false, persistSession: false }
+    })
+  : null;
 
 const FIXED_USERS = [
   {
@@ -67,45 +80,55 @@ export default async function handler(req: any, res: any) {
     let matchedUser: any = null;
     const q = cleanId.toLowerCase();
 
-    if (supabaseAdmin) {
-      const { data: dbUsers } = await supabaseAdmin.from('users').select('*');
-      if (dbUsers && Array.isArray(dbUsers)) {
-        matchedUser = dbUsers.find(
-          (u) =>
-            u.email?.toLowerCase() === q ||
-            u.badgeOrIdNumber?.toLowerCase() === q ||
-            u.id?.toLowerCase() === q ||
-            u.legacy_id?.toLowerCase() === q ||
-            u.name?.toLowerCase() === q ||
-            (q.length >= 3 && u.name?.toLowerCase().includes(q))
-        );
+    if (supabaseClient) {
+      try {
+        const { data: dbUsers, error: dbErr } = await supabaseClient.from('users').select('*');
+        if (!dbErr && dbUsers && Array.isArray(dbUsers)) {
+          matchedUser = dbUsers.find(
+            (u) =>
+              u.email?.toLowerCase() === q ||
+              u.badgeOrIdNumber?.toLowerCase() === q ||
+              u.id?.toLowerCase() === q ||
+              u.legacy_id?.toLowerCase() === q ||
+              u.name?.toLowerCase() === q ||
+              (q.length >= 3 && u.name?.toLowerCase().includes(q))
+          );
+        }
+      } catch (dbErr) {
+        console.warn('Database user search notice:', dbErr);
       }
 
-      // If not found in public.users, also check auth.users directly and auto-sync to public.users
-      if (!matchedUser) {
-        const { data: authList } = await supabaseAdmin.auth.admin.listUsers();
-        const foundAuth = (authList?.users || []).find(
-          (au: any) =>
-            au.email?.toLowerCase() === q ||
-            au.user_metadata?.name?.toLowerCase() === q ||
-            (q.length >= 3 && au.user_metadata?.name?.toLowerCase().includes(q))
-        );
-        if (foundAuth && foundAuth.email) {
-          const m = foundAuth.user_metadata || {};
-          const syncedRow = {
-            id: foundAuth.id,
-            email: foundAuth.email,
-            name: m.name || m.full_name || foundAuth.email.split('@')[0],
-            role: m.role || 'RESIDENT',
-            agencyType: m.agencyType || 'RESIDENT',
-            agencyName: m.agencyName || `Barangay ${m.barangay || 'Bagumbayan'} Resident Citizen`,
-            barangay: m.barangay || 'Bagumbayan',
-            position: m.position || 'Verified Resident Citizen',
-            badgeOrIdNumber: m.badgeOrIdNumber || 'RES-ROX-2026',
-            avatarUrl: m.avatarUrl || m.avatar_url || '/bconnect_logo_transparent.png'
-          };
-          await supabaseAdmin.from('users').upsert(syncedRow, { onConflict: 'id' });
-          matchedUser = syncedRow;
+      // If not found in public.users, check auth.users directly ONLY when service role key is strictly verified
+      if (!matchedUser && hasServiceRole) {
+        try {
+          const { data: authList, error: authErr } = await supabaseClient.auth.admin.listUsers();
+          if (!authErr && authList?.users) {
+            const foundAuth = authList.users.find(
+              (au: any) =>
+                au.email?.toLowerCase() === q ||
+                au.user_metadata?.name?.toLowerCase() === q ||
+                (q.length >= 3 && au.user_metadata?.name?.toLowerCase().includes(q))
+            );
+            if (foundAuth && foundAuth.email) {
+              const m = foundAuth.user_metadata || {};
+              const syncedRow = {
+                id: foundAuth.id,
+                email: foundAuth.email,
+                name: m.name || m.full_name || foundAuth.email.split('@')[0],
+                role: m.role || 'RESIDENT',
+                agencyType: m.agencyType || 'RESIDENT',
+                agencyName: m.agencyName || `Barangay ${m.barangay || 'Bagumbayan'} Resident Citizen`,
+                barangay: m.barangay || 'Bagumbayan',
+                position: m.position || 'Verified Resident Citizen',
+                badgeOrIdNumber: m.badgeOrIdNumber || 'RES-ROX-2026',
+                avatarUrl: m.avatarUrl || m.avatar_url || '/bconnect_logo_transparent.png'
+              };
+              await supabaseClient.from('users').upsert(syncedRow, { onConflict: 'id' });
+              matchedUser = syncedRow;
+            }
+          }
+        } catch (authErr) {
+          console.warn('Auth admin listUsers bypassed:', authErr);
         }
       }
     }

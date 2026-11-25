@@ -18,9 +18,11 @@ The system connects four official user roles:
 
 ---
 
-## Active Phase: Hallmark Multi-Screen Unslop & Systematic Redesign
+## Active Phase: Phase 2 Database Persistence, RLS Hardening & Auth (WP-09 to WP-13)
 
-The design foundation and public gateway ([WP-01](file:///home/keil/barangay/src/components/auth/AuthPage.tsx)) are complete (0 FAILs, 24/24 handlers kept, production build verified). The active phase executes the systematic redesign of the internal application screens ([WP-02 through WP-08](file:///home/keil/barangay/SPEC.md)), eliminating all AI-generated slop patterns while preserving 100% of functional wiring, Supabase realtime synchronization, and emergency audio alarms.
+Phase 1 (Hallmark Multi-Screen Redesign, WP-01 to WP-08) is complete and verified across all 34 source files (0 sloplint errors, clean production build).
+
+The active phase focuses on backend resilience, full case mutation proxying, Supabase Row Level Security hardening, mobile navigation restoration, and Google OAuth streamlining ([WP-09 through WP-13](SPEC.md)).
 
 ---
 
@@ -29,29 +31,29 @@ The design foundation and public gateway ([WP-01](file:///home/keil/barangay/src
 - **Work Package Scope**: Implement exactly **one work package per session** (from [SPEC.md](SPEC.md) and [PROGRESS.md](PROGRESS.md)). Stop cleanly at its boundary. Never modify out-of-scope modules autonomously.
 - **Approved Tech Stack**:
   - **Frontend**: React 19, TypeScript, Tailwind CSS v4, Motion 12, Lucide React, Leaflet.
-  - **Backend**: Express + Node.js (`server.ts` with TypeScript execution via TSX).
+  - **Backend**: Express + Node.js (`server.ts` with TypeScript execution via TSX) and Vercel serverless routes (`api/*`).
   - **Database & Realtime**: Supabase (PostgreSQL, Supabase Auth, Realtime Channels, Storage).
-  - **Styling Architecture**: Semantic tokens declared in [src/tokens.css](file:///home/keil/barangay/src/tokens.css) and reset in [src/base.css](file:///home/keil/barangay/src/base.css) via [DESIGN.md](file:///home/keil/barangay/DESIGN.md).
+  - **Styling Architecture**: Semantic tokens declared in [src/tokens.css](src/tokens.css) and reset in [src/base.css](src/base.css) via [DESIGN.md](DESIGN.md).
 - **Hallmark Floor Invariants (Non-Waivable)**:
-  - **Zero Literal Colors**: Every color must resolve to a token from `tokens.css` (`bg-paper`, `text-ink`, `border-rule`, `bg-accent`, `text-error`, etc.). No arbitrary hex literals (`bg-[#0a1628]`, `text-[#0c2e1f]`).
-  - **Never `transition: all`**: Always specify explicit transitions (`transition-colors`, `transition-opacity`, `transition-transform`). Never animate `width`, `height`, `top`, or `left`.
+  - **Zero Literal Colors**: Every color must resolve to a token from `tokens.css` (`bg-paper`, `text-ink`, `border-rule`, `bg-accent`, `text-error`, etc.).
+  - **Never `transition: all`**: Always specify explicit transitions (`transition-colors`, `transition-opacity`, `transition-transform`).
   - **Accessible Focus**: Every interactive button, input, tab, and select must carry instant `:focus-visible:ring-2 focus-visible:ring-focus`.
-  - **Motion Discipline**: Support `prefers-reduced-motion: reduce`. Motion is state-driven, never ambient decoration (no bouncing badges or spinning floating spheres).
-  - **No Hand-Drawn Slop**: No card-inside-a-card (Gate 4), no blurred orbs or fake glass (Gate 29), no emoji in select options (Gate 30a), no glued arrows (Gate 63: `→`), and no tracked uppercase small caps (Gate 67).
+  - **Motion Discipline**: Support `prefers-reduced-motion: reduce`.
+  - **No Slop**: No card-inside-a-card, no blurred orbs, no emoji in select options, no glued arrows.
   - **Tabular Figures**: Every numeric statistic, case docket number, timestamp, and countdown must use `font-variant-numeric: tabular-nums` or `num` utility.
 - **System & Domain Invariants**:
   - **Preserve Wiring & State**: Never drop or alter form handlers, context hooks (`useCases`, `useAuth`, `useUI`, `useNotifications`), Supabase realtime subscriptions, or Leaflet map layers.
-  - **Official Fixed Credentials**: Maintain fixed credential availability (`mdrrmoroxas@gmail.com` / `mdrrmo2026`, `lguroxas@gmail.com` / `lguroxas2026`) and instant demo persona access for evaluation and thesis defense.
-  - **Dual-Mode Offline Fallback**: Always maintain offline/demo state fallbacks so evaluators and municipal personnel can operate the platform without live backend dependencies.
+  - **Official Fixed Credentials**: Maintain fixed credential availability (`mdrrmoroxas@gmail.com` / `mdrrmo2026`, `lguroxas@gmail.com` / `lguroxas2026`) and instant demo persona access.
+  - **Dual-Mode Offline Fallback**: Always maintain offline/demo state fallbacks so evaluators and municipal personnel can operate without live backend dependencies.
 
 ---
 
 ## Definition of Done for a Work Package
 
 1. `npm run build` (`vite build`) bundles cleanly with 0 compilation errors.
-2. `node /home/keil/.gemini/config/skills/hallmark/scripts/sloplint.mjs <target-files> --genre modern-minimal --scope app` reports **0 FAILs**.
+2. `npm run lint` (`tsc --noEmit`) passes with 0 TypeScript errors.
 3. All interactive handlers, forms, and test IDs within target files are fully preserved and accounted for.
-4. Deliverables specified in [SPEC.md](SPEC.md) for the work package are fully implemented.
+4. Deliverables specified in [SPEC.md](SPEC.md) for the work package are fully implemented and verified.
 5. [PROGRESS.md](PROGRESS.md) is updated with deliverable summaries and checked-off checklists (`[x]`).
 6. Git status is clean and reflects only files belonging to the assigned work package.
 
@@ -60,7 +62,6 @@ The design foundation and public gateway ([WP-01](file:///home/keil/barangay/src
 ## Do Not
 
 - Touch or modify components outside the assigned work package scope.
-- Re-introduce neomorphic styling, 3D radial gradients, or arbitrary box-shadows.
-- Hardcode Supabase service role keys or sensitive credentials in client bundles.
+- Hardcode Supabase service role keys in client bundles.
 - Drop or rename existing component props, test IDs, or Supabase realtime channels.
-- Mark any deliverable complete without verifiable build and sloplint evidence.
+- Mark any deliverable complete without verifiable build and typecheck evidence.
