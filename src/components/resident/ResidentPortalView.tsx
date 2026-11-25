@@ -58,6 +58,7 @@ export const ResidentPortalView: React.FC<{ initialTab?: 'overview' | 'submit' |
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submittedSuccessCaseId, setSubmittedSuccessCaseId] = useState<string | null>(null);
+  const [showReportSubmittedModal, setShowReportSubmittedModal] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [reportSearch, setReportSearch] = useState('');
   const [showEmergencyContacts, setShowEmergencyContacts] = useState(false);
@@ -208,6 +209,7 @@ export const ResidentPortalView: React.FC<{ initialTab?: 'overview' | 'submit' |
 
     setIsSubmitting(false);
     setSubmittedSuccessCaseId(newCaseId);
+    setShowReportSubmittedModal(true);
 
     // Reset Form
     setReportTitle('');
@@ -320,6 +322,83 @@ export const ResidentPortalView: React.FC<{ initialTab?: 'overview' | 'submit' |
       {/* ----------------- TAB 1: SUBMIT INCIDENT REPORT (FORM WITH PHOTOS) ----------------- */}
       {portalTab === 'submit' && (
         <div className="space-y-6">
+          {/* Prominent Report Submitted Confirmation Popup Modal */}
+          {showReportSubmittedModal && submittedSuccessCaseId && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 backdrop-blur-[1px] p-4 animate-in fade-in duration-150">
+              <div className="bg-paper border border-rule rounded-2xl p-6 max-w-md w-full shadow-card text-center space-y-4 relative">
+                <button
+                  type="button"
+                  onClick={() => setShowReportSubmittedModal(false)}
+                  aria-label="Close confirmation"
+                  className="absolute top-3.5 right-3.5 p-1.5 text-muted hover:text-ink rounded-lg hover:bg-paper-2 cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+
+                <div className="w-16 h-16 rounded-full bg-emerald-500/15 border-2 border-emerald-500/40 text-emerald-600 flex items-center justify-center mx-auto shadow-xs">
+                  <CheckCircle2 className="w-9 h-9 text-emerald-600" />
+                </div>
+
+                <div className="space-y-1.5">
+                  <h3 className="text-xl font-extrabold text-ink tracking-tight">
+                    Report Submitted!
+                  </h3>
+                  <p className="text-xs text-muted leading-relaxed">
+                    Your incident report has been officially received and transmitted to the{' '}
+                    <strong className="text-ink">MDRRMO Operations Center</strong>.
+                  </p>
+                </div>
+
+                <div className="inline-flex items-center gap-2 bg-paper-2 px-4 py-2 rounded-xl border border-rule">
+                  <span className="text-xs text-muted font-semibold">Reference ID:</span>
+                  <span className="text-sm font-black font-mono text-emerald-700 dark:text-accent num">
+                    {submittedSuccessCaseId}
+                  </span>
+                </div>
+
+                {(() => {
+                  const matchedCase = cases.find((c) => c.id === submittedSuccessCaseId);
+                  if (matchedCase && isConsolidatedCase(matchedCase)) {
+                    return (
+                      <div className="p-3 bg-paper-2 border border-rule rounded-xl text-left text-xs flex items-start gap-2">
+                        <CheckCircle2 className="w-4 h-4 text-accent shrink-0 mt-0.5" />
+                        <div>
+                          <strong className="block font-semibold text-ink">
+                            Unified Report (Auto-Consolidated)
+                          </strong>
+                          <span className="text-[11px] text-muted leading-relaxed block mt-0.5">
+                            Merged into active docket {submittedSuccessCaseId} to prevent duplicate emergency dispatch.
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  }
+                  return null;
+                })()}
+
+                <div className="flex flex-col sm:flex-row items-center gap-2 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowReportSubmittedModal(false);
+                      handleSwitchTab('my_reports');
+                    }}
+                    className="w-full sm:flex-1 py-2.5 px-4 bg-accent text-accent-ink rounded-xl text-xs font-bold hover:opacity-95 transition-opacity cursor-pointer"
+                  >
+                    View My Reports
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowReportSubmittedModal(false)}
+                    className="w-full sm:w-auto py-2.5 px-4 bg-paper-2 hover:bg-paper-3 text-ink border border-rule rounded-xl text-xs font-semibold transition-colors cursor-pointer"
+                  >
+                    Done
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Submission Success Banner */}
           {submittedSuccessCaseId && (
             <div className="bg-paper border border-accent rounded-xl p-5 shadow-xs space-y-3 transition-colors">
@@ -332,7 +411,7 @@ export const ResidentPortalView: React.FC<{ initialTab?: 'overview' | 'submit' |
                     Incident report submitted successfully
                   </h3>
                   <p className="text-xs text-muted leading-relaxed">
-                    Your report has been officially forwarded to the Barangay {reportBarangay} Desk Officer and MDRRMO Operations Center. Assigned tracking reference number:
+                    Your report has been officially forwarded to the MDRRMO Operations Center. Assigned tracking reference number:
                   </p>
 
                   <div className="inline-flex items-center gap-2 bg-paper-2 px-3 py-1.5 rounded-md border border-rule mt-1">

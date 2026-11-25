@@ -9,6 +9,3 @@ coverage/
 dev_files
 scratch/
 .worktrees/
-.agents/
-.claude/
-skills-lock.json
