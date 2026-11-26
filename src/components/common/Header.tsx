@@ -526,7 +526,7 @@ export const Header: React.FC<{ onToggleSidebar?: () => void }> = ({ onToggleSid
 
               <div
                 id="role-switcher-dropdown"
-                className="fixed inset-x-3 top-14 sm:absolute sm:inset-auto sm:right-0 sm:top-full sm:mt-2 w-auto sm:w-[370px] max-w-[calc(100vw-1.5rem)] mx-auto sm:mx-0 bg-paper text-ink rounded-xl shadow-card border border-rule z-50 overflow-hidden flex flex-col max-h-[calc(100dvh-9rem)] sm:max-h-[38rem] animate-in fade-in duration-150"
+                className="fixed inset-x-3 top-14 sm:absolute sm:inset-auto sm:right-0 sm:top-full sm:mt-2 w-auto sm:w-[370px] max-w-[calc(100vw-1.5rem)] mx-auto sm:mx-0 bg-[#04140c] text-white rounded-2xl shadow-card border border-emerald-900/60 z-50 overflow-hidden flex flex-col max-h-[calc(100dvh-9rem)] sm:max-h-[38rem] animate-in fade-in duration-150"
               >
                 {/* UNIFIED PROFILE & SETTINGS VIEW (Resident, MDRRMO, LGU, Admin) */}
                 <div className="bg-gradient-to-br from-[#063b22] via-[#094d2d] to-[#042917] text-white p-4 flex-shrink-0 space-y-3.5">
@@ -638,17 +638,17 @@ export const Header: React.FC<{ onToggleSidebar?: () => void }> = ({ onToggleSid
                   </div>
                 </div>
 
-                {/* Scrollable Settings & Subviews */}
-                <div className="p-3.5 space-y-3 flex-1 overflow-y-auto min-h-0 bg-paper-2">
+                {/* Scrollable Settings & Subviews (Dark B-CONNECT Style) */}
+                <div className="p-3.5 space-y-3 flex-1 overflow-y-auto min-h-0 bg-[#04140c] text-white">
                   {profileSubView === 'MAIN' && (
                     <>
                       {/* 1. Dark Mode Card */}
-                      <div className="bg-paper border border-rule rounded-xl p-3.5 flex items-center justify-between gap-3 shadow-2xs">
+                      <div className="bg-[#081a11] border border-emerald-900/60 rounded-xl p-3.5 flex items-center justify-between gap-3 shadow-2xs">
                         <div className="flex items-center gap-3.5 min-w-0">
-                          <Moon className="w-5 h-5 text-emerald-700 dark:text-accent flex-shrink-0" />
+                          <Moon className="w-5 h-5 text-emerald-400 flex-shrink-0" />
                           <div className="min-w-0">
-                            <div className="text-xs font-bold text-ink">Dark Mode</div>
-                            <div className="text-[11px] text-muted">Toggle dark appearance</div>
+                            <div className="text-xs font-bold text-white">Dark Mode</div>
+                            <div className="text-[11px] text-emerald-100/60">Toggle dark appearance</div>
                           </div>
                         </div>
                         <button
@@ -658,7 +658,7 @@ export const Header: React.FC<{ onToggleSidebar?: () => void }> = ({ onToggleSid
                           aria-checked={isDark}
                           onClick={toggleTheme}
                           className={`w-11 h-6 rounded-full transition-colors p-0.5 cursor-pointer flex items-center flex-shrink-0 ${
-                            isDark ? 'bg-accent justify-end' : 'bg-slate-300 justify-start'
+                            isDark ? 'bg-emerald-500 justify-end' : 'bg-slate-600 justify-start'
                           }`}
                           title="Toggle Dark Mode"
                         >
@@ -668,7 +668,7 @@ export const Header: React.FC<{ onToggleSidebar?: () => void }> = ({ onToggleSid
 
                       {/* Security Section */}
                       <div className="pt-1">
-                        <h4 className="text-xs font-extrabold text-ink px-1 mb-2">Security</h4>
+                        <h4 className="text-xs font-extrabold text-white px-1 mb-2">Security</h4>
                         <button
                           id="btn-resident-profile-account-mgmt"
                           type="button"
@@ -676,12 +676,12 @@ export const Header: React.FC<{ onToggleSidebar?: () => void }> = ({ onToggleSid
                             setConfirmDeleteAccount(false);
                             setProfileSubView('ACCOUNT_MGMT');
                           }}
-                          className="w-full text-left bg-paper hover:bg-paper-3 border border-rule rounded-xl p-3.5 flex items-center gap-3.5 shadow-2xs transition-colors cursor-pointer"
+                          className="w-full text-left bg-[#081a11] hover:bg-[#0d261a] border border-emerald-900/60 rounded-xl p-3.5 flex items-center gap-3.5 shadow-2xs transition-colors cursor-pointer"
                         >
-                          <Shield className="w-5 h-5 text-emerald-700 dark:text-accent flex-shrink-0" />
+                          <Shield className="w-5 h-5 text-emerald-400 flex-shrink-0" />
                           <div className="min-w-0">
-                            <div className="text-xs font-bold text-ink">Account Management</div>
-                            <div className="text-[11px] text-muted">
+                            <div className="text-xs font-bold text-white">Account Management</div>
+                            <div className="text-[11px] text-emerald-100/60">
                               Password, credentials &amp; account settings
                             </div>
                           </div>
@@ -690,65 +690,65 @@ export const Header: React.FC<{ onToggleSidebar?: () => void }> = ({ onToggleSid
 
                       {/* Support & Info Section */}
                       <div className="pt-1 space-y-2">
-                        <h4 className="text-xs font-extrabold text-ink px-1">Support &amp; Info</h4>
+                        <h4 className="text-xs font-extrabold text-white px-1">Support &amp; Info</h4>
 
                         <button
                           type="button"
                           onClick={() => setProfileSubView('ABOUT')}
-                          className="w-full text-left bg-paper hover:bg-paper-3 border border-rule rounded-xl p-3.5 flex items-center gap-3.5 shadow-2xs transition-colors cursor-pointer"
+                          className="w-full text-left bg-[#081a11] hover:bg-[#0d261a] border border-emerald-900/60 rounded-xl p-3.5 flex items-center gap-3.5 shadow-2xs transition-colors cursor-pointer"
                         >
-                          <Info className="w-5 h-5 text-emerald-700 dark:text-accent flex-shrink-0" />
+                          <Info className="w-5 h-5 text-emerald-400 flex-shrink-0" />
                           <div className="min-w-0">
-                            <div className="text-xs font-bold text-ink">About B-CONNECT</div>
-                            <div className="text-[11px] text-muted">Team credits &amp; information</div>
+                            <div className="text-xs font-bold text-white">About B-CONNECT</div>
+                            <div className="text-[11px] text-emerald-100/60">Team credits &amp; information</div>
                           </div>
                         </button>
 
                         <button
                           type="button"
                           onClick={() => setProfileSubView('SCOPE')}
-                          className="w-full text-left bg-paper hover:bg-paper-3 border border-rule rounded-xl p-3.5 flex items-center gap-3.5 shadow-2xs transition-colors cursor-pointer"
+                          className="w-full text-left bg-[#081a11] hover:bg-[#0d261a] border border-emerald-900/60 rounded-xl p-3.5 flex items-center gap-3.5 shadow-2xs transition-colors cursor-pointer"
                         >
-                          <Search className="w-5 h-5 text-emerald-700 dark:text-accent flex-shrink-0" />
+                          <Search className="w-5 h-5 text-emerald-400 flex-shrink-0" />
                           <div className="min-w-0">
-                            <div className="text-xs font-bold text-ink">Scope &amp; Limitations</div>
-                            <div className="text-[11px] text-muted">Coverage and capabilities</div>
+                            <div className="text-xs font-bold text-white">Scope &amp; Limitations</div>
+                            <div className="text-[11px] text-emerald-100/60">Coverage and capabilities</div>
                           </div>
                         </button>
 
                         <button
                           type="button"
                           onClick={() => setProfileSubView('TERMS')}
-                          className="w-full text-left bg-paper hover:bg-paper-3 border border-rule rounded-xl p-3.5 flex items-center gap-3.5 shadow-2xs transition-colors cursor-pointer"
+                          className="w-full text-left bg-[#081a11] hover:bg-[#0d261a] border border-emerald-900/60 rounded-xl p-3.5 flex items-center gap-3.5 shadow-2xs transition-colors cursor-pointer"
                         >
-                          <FileText className="w-5 h-5 text-emerald-700 dark:text-accent flex-shrink-0" />
+                          <FileText className="w-5 h-5 text-emerald-400 flex-shrink-0" />
                           <div className="min-w-0">
-                            <div className="text-xs font-bold text-ink">Terms of Service</div>
-                            <div className="text-[11px] text-muted">Our rules and guidelines</div>
+                            <div className="text-xs font-bold text-white">Terms of Service</div>
+                            <div className="text-[11px] text-emerald-100/60">Our rules and guidelines</div>
                           </div>
                         </button>
 
                         <button
                           type="button"
                           onClick={() => setProfileSubView('PRIVACY')}
-                          className="w-full text-left bg-paper hover:bg-paper-3 border border-rule rounded-xl p-3.5 flex items-center gap-3.5 shadow-2xs transition-colors cursor-pointer"
+                          className="w-full text-left bg-[#081a11] hover:bg-[#0d261a] border border-emerald-900/60 rounded-xl p-3.5 flex items-center gap-3.5 shadow-2xs transition-colors cursor-pointer"
                         >
-                          <Shield className="w-5 h-5 text-emerald-700 dark:text-accent flex-shrink-0" />
+                          <Shield className="w-5 h-5 text-emerald-400 flex-shrink-0" />
                           <div className="min-w-0">
-                            <div className="text-xs font-bold text-ink">Privacy Policy</div>
-                            <div className="text-[11px] text-muted">How we handle your data</div>
+                            <div className="text-xs font-bold text-white">Privacy Policy</div>
+                            <div className="text-[11px] text-emerald-100/60">How we handle your data</div>
                           </div>
                         </button>
 
                         <button
                           type="button"
                           onClick={() => setProfileSubView('SUGGESTIONS')}
-                          className="w-full text-left bg-paper hover:bg-paper-3 border border-rule rounded-xl p-3.5 flex items-center gap-3.5 shadow-2xs transition-colors cursor-pointer"
+                          className="w-full text-left bg-[#081a11] hover:bg-[#0d261a] border border-emerald-900/60 rounded-xl p-3.5 flex items-center gap-3.5 shadow-2xs transition-colors cursor-pointer"
                         >
-                          <Send className="w-5 h-5 text-emerald-700 dark:text-accent flex-shrink-0" />
+                          <Send className="w-5 h-5 text-emerald-400 flex-shrink-0" />
                           <div className="min-w-0">
-                            <div className="text-xs font-bold text-ink">Suggestions &amp; Requests</div>
-                            <div className="text-[11px] text-muted">
+                            <div className="text-xs font-bold text-white">Suggestions &amp; Requests</div>
+                            <div className="text-[11px] text-emerald-100/60">
                               Send feedback or submit a request
                             </div>
                           </div>
@@ -760,12 +760,12 @@ export const Header: React.FC<{ onToggleSidebar?: () => void }> = ({ onToggleSid
                   {/* SUB-VIEW: ACCOUNT MANAGEMENT (Edit Credentials & Delete Account) */}
                   {profileSubView === 'ACCOUNT_MGMT' && (
                     <div className="space-y-3">
-                      <div className="bg-paper border border-rule rounded-xl p-4 space-y-3">
+                      <div className="bg-[#081a11] border border-emerald-900/60 rounded-xl p-4 space-y-3">
                         <div className="flex items-center gap-2.5">
-                          <KeyRound className="w-4 h-4 text-emerald-700 dark:text-accent flex-shrink-0" />
+                          <KeyRound className="w-4 h-4 text-emerald-400 flex-shrink-0" />
                           <div>
-                            <div className="text-xs font-bold text-ink">Credentials &amp; Profile Settings</div>
-                            <div className="text-[11px] text-muted">
+                            <div className="text-xs font-bold text-white">Credentials &amp; Profile Settings</div>
+                            <div className="text-[11px] text-emerald-100/60">
                               Update your display name, email, or account password
                             </div>
                           </div>
@@ -776,7 +776,7 @@ export const Header: React.FC<{ onToggleSidebar?: () => void }> = ({ onToggleSid
                             setIsRoleDropdownOpen(false);
                             openEditAccountModal(currentUser);
                           }}
-                          className="w-full py-2 px-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+                          className="w-full py-2 px-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-bold transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
                         >
                           <Edit3 className="w-3.5 h-3.5" />
                           <span>Edit Profile &amp; Change Password</span>
@@ -784,12 +784,12 @@ export const Header: React.FC<{ onToggleSidebar?: () => void }> = ({ onToggleSid
                       </div>
 
                       {/* Danger Zone: Delete Account */}
-                      <div className="bg-paper border border-error/40 rounded-xl p-4 space-y-3">
+                      <div className="bg-[#081a11] border border-red-500/40 rounded-xl p-4 space-y-3">
                         <div className="flex items-start gap-2.5">
-                          <Trash2 className="w-4 h-4 text-error flex-shrink-0 mt-0.5" />
+                          <Trash2 className="w-4 h-4 text-red-400 flex-shrink-0 mt-0.5" />
                           <div>
-                            <div className="text-xs font-bold text-error">Delete Account</div>
-                            <p className="text-[11px] text-muted mt-0.5 leading-relaxed">
+                            <div className="text-xs font-bold text-red-400">Delete Account</div>
+                            <p className="text-[11px] text-emerald-100/60 mt-0.5 leading-relaxed">
                               Permanently remove your account ({currentUser.email}) from the B-CONNECT system.
                             </p>
                           </div>
@@ -800,21 +800,21 @@ export const Header: React.FC<{ onToggleSidebar?: () => void }> = ({ onToggleSid
                             id="btn-resident-delete-account-init"
                             type="button"
                             onClick={() => setConfirmDeleteAccount(true)}
-                            className="w-full py-2 px-3 bg-error/10 hover:bg-error/20 text-error border border-error/30 rounded-lg text-xs font-bold transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+                            className="w-full py-2 px-3 bg-red-500/15 hover:bg-red-500/25 text-red-300 border border-red-500/40 rounded-lg text-xs font-bold transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                             <span>Delete My Account</span>
                           </button>
                         ) : (
-                          <div className="p-3 bg-paper-2 border border-error/40 rounded-lg space-y-2.5">
-                            <p className="text-[11px] font-semibold text-ink leading-snug">
+                          <div className="p-3 bg-[#04140c] border border-red-500/40 rounded-lg space-y-2.5">
+                            <p className="text-[11px] font-semibold text-white leading-snug">
                               Are you sure you want to permanently delete your account? This action cannot be undone.
                             </p>
                             <div className="flex items-center gap-2">
                               <button
                                 type="button"
                                 onClick={() => setConfirmDeleteAccount(false)}
-                                className="flex-1 py-1.5 px-3 bg-paper hover:bg-paper-3 border border-rule text-ink rounded-md text-xs font-semibold cursor-pointer"
+                                className="flex-1 py-1.5 px-3 bg-[#081a11] hover:bg-[#0d261a] border border-emerald-900/60 text-white rounded-md text-xs font-semibold cursor-pointer"
                               >
                                 Cancel
                               </button>
@@ -825,7 +825,7 @@ export const Header: React.FC<{ onToggleSidebar?: () => void }> = ({ onToggleSid
                                   setIsRoleDropdownOpen(false);
                                   deleteUser(currentUser.id);
                                 }}
-                                className="flex-1 py-1.5 px-3 bg-error text-white rounded-md text-xs font-bold cursor-pointer hover:opacity-95"
+                                className="flex-1 py-1.5 px-3 bg-red-600 text-white rounded-md text-xs font-bold cursor-pointer hover:bg-red-500"
                               >
                                 Yes, Delete
                               </button>
@@ -838,12 +838,12 @@ export const Header: React.FC<{ onToggleSidebar?: () => void }> = ({ onToggleSid
 
                   {/* SUB-VIEW: ABOUT */}
                   {profileSubView === 'ABOUT' && (
-                    <div className="bg-paper border border-rule rounded-xl p-4 space-y-2.5 text-xs leading-relaxed">
-                      <div className="font-bold text-ink text-sm">B-CONNECT Roxas Network</div>
-                      <p className="text-muted">
+                    <div className="bg-[#081a11] border border-emerald-900/60 rounded-xl p-4 space-y-2.5 text-xs leading-relaxed">
+                      <div className="font-bold text-white text-sm">B-CONNECT Roxas Network</div>
+                      <p className="text-emerald-100/75">
                         B-CONNECT is the official Multi-Agency Incident Reporting, Emergency Dispatch, and Municipal Governance Platform for the Municipality of Roxas, Oriental Mindoro.
                       </p>
-                      <div className="p-2.5 bg-paper-2 rounded-lg border border-rule space-y-1 text-[11px]">
+                      <div className="p-2.5 bg-[#04140c] rounded-lg border border-emerald-900/60 space-y-1 text-[11px] text-emerald-100/85">
                         <div><strong>Municipality:</strong> Roxas, Oriental Mindoro</div>
                         <div><strong>Connected Agencies:</strong> 20 Barangays, MDRRMO Roxas, LGU Executive Office</div>
                         <div><strong>Version:</strong> 4.2.0-STABLE</div>
@@ -853,12 +853,12 @@ export const Header: React.FC<{ onToggleSidebar?: () => void }> = ({ onToggleSid
 
                   {/* SUB-VIEW: SCOPE & LIMITATIONS */}
                   {profileSubView === 'SCOPE' && (
-                    <div className="bg-paper border border-rule rounded-xl p-4 space-y-2.5 text-xs leading-relaxed">
-                      <div className="font-bold text-ink text-sm">Scope &amp; Limitations</div>
-                      <p className="text-muted">
+                    <div className="bg-[#081a11] border border-emerald-900/60 rounded-xl p-4 space-y-2.5 text-xs leading-relaxed">
+                      <div className="font-bold text-white text-sm">Scope &amp; Limitations</div>
+                      <p className="text-emerald-100/75">
                         Covers real-time citizen incident and vehicular accident reporting across all 20 Barangays of Roxas, Oriental Mindoro, with direct dispatch transmission to MDRRMO and automated statutory escalation to the LGU.
                       </p>
-                      <ul className="list-disc pl-4 text-muted space-y-1 text-[11px]">
+                      <ul className="list-disc pl-4 text-emerald-100/75 space-y-1 text-[11px]">
                         <li>Supports photo evidence uploads and real-time case status tracking.</li>
                         <li>Auto-consolidates duplicate incident reports to prevent redundant dispatch.</li>
                         <li>Requires internet or local network connectivity for real-time cross-agency sync.</li>
@@ -868,12 +868,12 @@ export const Header: React.FC<{ onToggleSidebar?: () => void }> = ({ onToggleSid
 
                   {/* SUB-VIEW: TERMS OF SERVICE */}
                   {profileSubView === 'TERMS' && (
-                    <div className="bg-paper border border-rule rounded-xl p-4 space-y-2.5 text-xs leading-relaxed">
-                      <div className="font-bold text-ink text-sm">Terms of Service</div>
-                      <p className="text-muted">
+                    <div className="bg-[#081a11] border border-emerald-900/60 rounded-xl p-4 space-y-2.5 text-xs leading-relaxed">
+                      <div className="font-bold text-white text-sm">Terms of Service</div>
+                      <p className="text-emerald-100/75">
                         By using the B-CONNECT Platform, you certify that all submitted incident reports, locations, and attached photos are truthful and accurate to the best of your knowledge.
                       </p>
-                      <p className="text-muted text-[11px]">
+                      <p className="text-emerald-100/65 text-[11px]">
                         Intentional submission of false emergency alarms or fabricated reports is strictly prohibited and subject to applicable municipal ordinances.
                       </p>
                     </div>
@@ -881,9 +881,9 @@ export const Header: React.FC<{ onToggleSidebar?: () => void }> = ({ onToggleSid
 
                   {/* SUB-VIEW: PRIVACY POLICY */}
                   {profileSubView === 'PRIVACY' && (
-                    <div className="bg-paper border border-rule rounded-xl p-4 space-y-2.5 text-xs leading-relaxed">
-                      <div className="font-bold text-ink text-sm">Privacy Policy (RA 10173)</div>
-                      <p className="text-muted">
+                    <div className="bg-[#081a11] border border-emerald-900/60 rounded-xl p-4 space-y-2.5 text-xs leading-relaxed">
+                      <div className="font-bold text-white text-sm">Privacy Policy (RA 10173)</div>
+                      <p className="text-emerald-100/75">
                         B-CONNECT strictly complies with Republic Act No. 10173 (Data Privacy Act of 2012). Your personal profile and submitted reports are isolated to your account and accessible only to authorized MDRRMO and LGU responders handling your case.
                       </p>
                     </div>
@@ -891,18 +891,18 @@ export const Header: React.FC<{ onToggleSidebar?: () => void }> = ({ onToggleSid
 
                   {/* SUB-VIEW: SUGGESTIONS & REQUESTS */}
                   {profileSubView === 'SUGGESTIONS' && (
-                    <div className="bg-paper border border-rule rounded-xl p-4 space-y-3 text-xs">
-                      <div className="font-bold text-ink text-sm">Suggestions &amp; Requests</div>
-                      <p className="text-muted text-[11px]">
+                    <div className="bg-[#081a11] border border-emerald-900/60 rounded-xl p-4 space-y-3 text-xs">
+                      <div className="font-bold text-white text-sm">Suggestions &amp; Requests</div>
+                      <p className="text-emerald-100/70 text-[11px]">
                         Have feedback or a service request for the B-CONNECT team or LGU Roxas? Send it below:
                       </p>
                       {suggestionSubmitted ? (
-                        <div className="p-3 bg-accent/10 border border-accent/30 rounded-lg text-ink space-y-2">
-                          <div className="font-bold text-accent flex items-center gap-1.5">
+                        <div className="p-3 bg-emerald-500/15 border border-emerald-400/30 rounded-lg text-white space-y-2">
+                          <div className="font-bold text-emerald-400 flex items-center gap-1.5">
                             <CheckCircle2 className="w-4 h-4" />
                             <span>Feedback Sent Successfully!</span>
                           </div>
-                          <p className="text-[11px] text-muted">
+                          <p className="text-[11px] text-emerald-100/75">
                             Thank you for helping improve B-CONNECT for the Municipality of Roxas.
                           </p>
                         </div>
@@ -931,11 +931,11 @@ export const Header: React.FC<{ onToggleSidebar?: () => void }> = ({ onToggleSid
                             placeholder="Write your suggestion or request here..."
                             value={suggestionText}
                             onChange={(e) => setSuggestionText(e.target.value)}
-                            className="w-full p-2.5 rounded-lg bg-paper-2 border border-rule text-xs text-ink focus:outline-none focus:ring-2 focus:ring-focus"
+                            className="w-full p-2.5 rounded-lg bg-[#04140c] border border-emerald-900/60 text-xs text-white placeholder:text-emerald-100/40 focus:outline-none focus:ring-2 focus:ring-emerald-400"
                           />
                           <button
                             type="submit"
-                            className="w-full py-2 px-3 bg-accent text-white rounded-lg text-xs font-bold cursor-pointer hover:opacity-95 transition-opacity"
+                            className="w-full py-2 px-3 bg-emerald-500 hover:bg-emerald-400 text-[#03130a] rounded-lg text-xs font-bold cursor-pointer transition-colors"
                           >
                             Submit Feedback
                           </button>
@@ -946,7 +946,7 @@ export const Header: React.FC<{ onToggleSidebar?: () => void }> = ({ onToggleSid
                 </div>
 
                 {/* Pinned Bottom Log Out Footer (Always visible on Mobile & Desktop) */}
-                <div className="p-3 bg-paper border-t border-rule flex-shrink-0">
+                <div className="p-3 bg-[#04140c] border-t border-emerald-900/60 flex-shrink-0">
                   <button
                     id="btn-role-dropdown-logout"
                     type="button"
@@ -954,7 +954,7 @@ export const Header: React.FC<{ onToggleSidebar?: () => void }> = ({ onToggleSid
                       setIsRoleDropdownOpen(false);
                       logout();
                     }}
-                    className="w-full py-2.5 px-3 bg-error hover:opacity-95 text-white rounded-xl text-xs font-bold transition-opacity flex items-center justify-center gap-2 cursor-pointer shadow-2xs"
+                    className="w-full py-2.5 px-3 bg-[#d92626] hover:bg-[#c51f1f] text-white rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-2 cursor-pointer shadow-2xs"
                   >
                     <LogOut className="w-4 h-4" />
                     <span>Log out / switch account</span>
